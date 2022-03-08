@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "modid",
+  "id": "jeff-modid",
   "version": "${version}",
 
   "name": "Example Mod",
@@ -20,6 +20,9 @@
   "entrypoints": {
     "main": [
       "net.fabricmc.example.ExampleMod"
+    ],
+    "client": [
+      "net.fabricmc.example.ExampleClientMod"
     ]
   },
   "mixins": [
@@ -27,7 +30,7 @@
   ],
 
   "depends": {
-    "fabricloader": ">=0.11.3",
+    "fabricloader": ">=0.12.12",
     "fabric": "*",
     "minecraft": "1.18.x",
     "java": ">=17"
