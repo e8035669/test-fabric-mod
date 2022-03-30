@@ -8,6 +8,7 @@ import net.fabricmc.example.mixin.BiomeAccessMixin;
 import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.EntitySelector;
@@ -78,6 +79,14 @@ public class MyUtils2 {
                         .then(argument("y", IntegerArgumentType.integer())
                                 .then(argument("z", IntegerArgumentType.integer())
                                         .executes(this::executeMove))))
+        );
+
+        ClientCommandManager.DISPATCHER.register(literal("openScreen")
+                .executes(context -> {
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    client.setScreen(new MyTestScreen(new LiteralText("My Test Screen")));
+                    return 1;
+                })
         );
     }
 
