@@ -88,6 +88,20 @@ public class MyUtils2 {
                 .executes(this::doOpenScreen)
         );
 
+        ClientCommandManager.DISPATCHER.register(literal("mouse")
+                .then(literal("plug").executes(context -> {
+                    HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
+                    mouse.plugMouse();
+                    return 1;
+                }))
+                .then(literal("unplug").executes(context -> {
+                    HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
+                    mouse.unplugMouse();
+                    return 1;
+                }))
+        );
+
+
         playerMotion = new PlayerMotion(MinecraftClient.getInstance());
         executor.scheduleAtFixedRate(() -> playerMotion.tick(), 1000, 10, TimeUnit.MILLISECONDS);
     }
