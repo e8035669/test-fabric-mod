@@ -76,7 +76,7 @@ public class ExampleClientMod implements ClientModInitializer {
             if (bindInfo.wasPressed()) {
                 // MyUtils.showTargetBlockInfo(client);
                 // client.send(() -> MyUtils.findNearestBlock(client));
-                client.setScreen(new MyTestScreen(new LiteralText("My Test Screen")));
+                client.mouse.unlockCursor();
             }
 
             if (bindLeftMouse.wasPressed()) {

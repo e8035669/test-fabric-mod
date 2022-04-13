@@ -11,7 +11,8 @@
     "EntitySelectorMixin",
     "MinecraftClientMixin",
     "EntityArgumentTypeMixin",
-    "BiomeAccessMixin"
+    "BiomeAccessMixin",
+    "KeyBindingMixin"
   ],
   "injectors": {
     "defaultRequire": 1

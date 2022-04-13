@@ -7,6 +7,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.example.mixin.BiomeAccessMixin;
 import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -39,6 +40,8 @@ public class MyUtils2 {
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     private final BlockingQueue<PairedRenderableFuture<?>> runningTasks = new ArrayBlockingQueue<>(100);
     private final BlockingQueue<PairedRenderableFuture<?>> outlineEntityTasks = new ArrayBlockingQueue<>(100);
+
+    private PlayerMotion playerMotion = null;
 
     public void registerCommands() {
         ClientCommandManager.DISPATCHER.register(literal("detectBlock")
@@ -82,12 +85,11 @@ public class MyUtils2 {
         );
 
         ClientCommandManager.DISPATCHER.register(literal("openScreen")
-                .executes(context -> {
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    client.setScreen(new MyTestScreen(new LiteralText("My Test Screen")));
-                    return 1;
-                })
+                .executes(this::doOpenScreen)
         );
+
+        playerMotion = new PlayerMotion(MinecraftClient.getInstance());
+        executor.scheduleAtFixedRate(() -> playerMotion.tick(), 1000, 10, TimeUnit.MILLISECONDS);
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
@@ -144,4 +146,38 @@ public class MyUtils2 {
         return 1;
     }
 
+    private int doOpenScreen(CommandContext<FabricClientCommandSource> context) {
+        executor.schedule(this::openScreen, 1000, TimeUnit.MILLISECONDS);
+
+        return 1;
+    }
+
+    private void openScreen() {
+        try {
+            openScreen0();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void openScreen0() throws InterruptedException {
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.send(() -> {
+            client.setScreen(new MyTestScreen(new LiteralText("My Test Screen"), client, this));
+            client.player.sendMessage(new LiteralText("Set Screen"), false);
+        });
+        // Thread.sleep(1000);
+        // playerMotion.moveForward(100);
+        // playerMotion.changeLookDirection(1, 0, 100);
+        // playerMotion.changeLookDirection(-1, 0, 100);
+        // playerMotion.moveForward(100);
+    }
+
+    public PlayerMotion getPlayerMotion() {
+        return playerMotion;
+    }
+
+    public ScheduledExecutorService getExecutor() {
+        return executor;
+    }
 }
