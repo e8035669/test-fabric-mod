@@ -1,33 +1,40 @@
 package net.fabricmc.example;
 
-import com.google.common.collect.Lists;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.example.mixin.BiomeAccessMixin;
 import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Mouse;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.command.CommandSource;
+import net.minecraft.client.render.*;
+import net.minecraft.client.render.debug.DebugRenderer;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.BlockStateArgument;
 import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.MovementType;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.LiteralText;
-import net.minecraft.util.Pair;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.biome.source.BiomeAccess;
+import net.minecraft.world.tick.Tick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.*;
 
 import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.argument;
@@ -36,12 +43,20 @@ import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.lit
 public class MyUtils2 {
     public static final Logger LOGGER = LogManager.getLogger("MyUtils2");
 
-
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     private final BlockingQueue<PairedRenderableFuture<?>> runningTasks = new ArrayBlockingQueue<>(100);
     private final BlockingQueue<PairedRenderableFuture<?>> outlineEntityTasks = new ArrayBlockingQueue<>(100);
-
     private PlayerMotion playerMotion = null;
+
+    public PlayerMotion getPlayerMotion() {
+        return playerMotion;
+    }
+
+    public ScheduledExecutorService getExecutor() {
+        return executor;
+    }
+
+    boolean isPrintInformations = false;
 
     public void registerCommands() {
         ClientCommandManager.DISPATCHER.register(literal("detectBlock")
@@ -100,10 +115,14 @@ public class MyUtils2 {
                     return 1;
                 }))
         );
-
+        ClientCommandManager.DISPATCHER.register(literal("tempMove").executes(this::executeTempMove));
 
         playerMotion = new PlayerMotion(MinecraftClient.getInstance());
-        executor.scheduleAtFixedRate(() -> playerMotion.tick(), 1000, 10, TimeUnit.MILLISECONDS);
+        executor.scheduleAtFixedRate(()->playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
+        // ClientTickEvents.END_CLIENT_TICK.register(client -> playerMotion.tick());
+        executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
+
+        HudRenderCallback.EVENT.register(this::onHudRender);
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
@@ -187,11 +206,49 @@ public class MyUtils2 {
         // playerMotion.moveForward(100);
     }
 
-    public PlayerMotion getPlayerMotion() {
-        return playerMotion;
+
+
+    private int executeTempMove(CommandContext<FabricClientCommandSource> context) {
+
+        executor.schedule(() -> {
+            ClientPlayerEntity player = context.getSource().getPlayer();
+            Mouse mouse = context.getSource().getClient().mouse;
+            Vec3d pos = Vec3d.ofBottomCenter(player.getBlockPos().add(10, 0, 10));
+            HotPlugMouse.of(mouse).unplugMouse();
+            player.sendMessage(new LiteralText("Move to %s".formatted(pos)), false);
+            playerMotion.walkTo(pos);
+            playerMotion.send(() -> {
+                player.sendMessage(new LiteralText("Move done"), false);
+                HotPlugMouse.of(mouse).plugMouse();
+            });
+
+        }, 1000, TimeUnit.MILLISECONDS);
+        return 1;
     }
 
-    public ScheduledExecutorService getExecutor() {
-        return executor;
+
+    public void onHudRender(MatrixStack matrixStack, float tickDelta) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        var player = client.player;
+        TextRenderer textRenderer = client.textRenderer;
+        int height = client.getWindow().getScaledHeight();
+        int width = client.getWindow().getScaledWidth();
+
+        matrixStack.push();
+
+        Vec3d velocity = player.getVelocity();
+        BlockPos blockPos = player.getBlockPos();
+        String speed = String.format("Spd: %.2f, %.2f, %.2f, (%.2f, %.2f, %.2f)",
+                player.forwardSpeed, player.sidewaysSpeed, player.getMovementSpeed(),
+                velocity.x, velocity.y, velocity.z);
+        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, speed, 0, height - 40, 0x90FFFFFF);
+        String position = String.format("Pos: (%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, position, 0, height - 30, 0x90FFFFFF);
+        String blockPosStr = String.format("BPos: (%d, %d, %d)", blockPos.getX(), blockPos.getY(), blockPos.getZ());
+        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, blockPosStr, 0, height - 20, 0x90FFFFFF);
+        String dir = String.format("Dir: (%.2f, %.2f)", MathHelper.wrapDegrees(player.getYaw()), player.getPitch());
+        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, dir, 0, height - 10, 0x90FFFFFF);
+
+        matrixStack.pop();
     }
 }

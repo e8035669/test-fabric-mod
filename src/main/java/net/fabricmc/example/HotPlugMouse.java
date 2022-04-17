@@ -7,6 +7,8 @@ import net.minecraft.client.util.InputUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Arrays;
+
 public class HotPlugMouse extends Mouse {
     public static final Logger LOGGER = LogManager.getLogger("HotPlugMouse");
 
