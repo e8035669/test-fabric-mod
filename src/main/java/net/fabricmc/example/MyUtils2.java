@@ -1,5 +1,6 @@
 package net.fabricmc.example;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -23,6 +24,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.math.*;
+import net.minecraft.world.World;
 import net.minecraft.world.biome.source.BiomeAccess;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,7 +65,7 @@ public class MyUtils2 {
         );
         ClientCommandManager.DISPATCHER.register(literal("stopDetectBlock")
                 .executes(context -> {
-                    runningTasks.forEach(task-> task.cancel(false));
+                    runningTasks.forEach(task -> task.cancel(false));
                     runningTasks.clear();
                     return 1;
                 })
@@ -126,12 +128,27 @@ public class MyUtils2 {
 
 
         playerMotion = new PlayerMotion(MinecraftClient.getInstance());
-        executor.scheduleAtFixedRate(()->playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
+        executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
         // ClientTickEvents.END_CLIENT_TICK.register(client -> playerMotion.tick());
         executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
 
         HudRenderCallback.EVENT.register(this::onHudRender);
-        WorldRenderEvents.AFTER_ENTITIES.register(this::onAfterEntities);
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            if (true) {
+                onAfterEntities(context);
+                // onBeforeDebugRender2(context);
+            }
+        });
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
+            if (false) {
+                onBeforeDebugRender(context);
+            }
+        });
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
+            if (true) {
+                onBeforeDebugRender2(context);
+            }
+        });
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
@@ -171,7 +188,7 @@ public class MyUtils2 {
 
     private int executeGetSeed(CommandContext<FabricClientCommandSource> context) {
         BiomeAccess biomeAccess = context.getSource().getWorld().getBiomeAccess();
-        long seed = ((BiomeAccessMixin)biomeAccess).getSeed();
+        long seed = ((BiomeAccessMixin) biomeAccess).getSeed();
         context.getSource().sendFeedback(new LiteralText("Biomes Seed: %d".formatted(seed)));
         return 1;
     }
@@ -214,7 +231,6 @@ public class MyUtils2 {
         // playerMotion.changeLookDirection(-1, 0, 100);
         // playerMotion.moveForward(100);
     }
-
 
 
     private int executeTempMove(CommandContext<FabricClientCommandSource> context) {
@@ -321,9 +337,9 @@ public class MyUtils2 {
     public void onAfterEntities(WorldRenderContext context) {
         MatrixStack matrixStack = context.matrixStack();
         Camera camera = context.camera();
-        float camX = (float)camera.getPos().x;
-        float camY = (float)camera.getPos().y;
-        float camZ = (float)camera.getPos().z;
+        float camX = (float) camera.getPos().x;
+        float camY = (float) camera.getPos().y;
+        float camZ = (float) camera.getPos().z;
 
         BlockPos blockPos1 = new BlockPos(0, 0, 0);
         Box box = new Box(blockPos1).expand(0.002).offset(-camX, -camY, -camZ);
@@ -331,7 +347,7 @@ public class MyUtils2 {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        RenderSystem.lineWidth(2.0f);
+        RenderSystem.lineWidth(6.0f);
         RenderSystem.disableTexture();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
@@ -439,6 +455,86 @@ public class MyUtils2 {
     }
 
      */
+
+    public void onBeforeDebugRender(WorldRenderContext context) {
+        MatrixStack matrixStack = context.matrixStack();
+        matrixStack.push();
+        MatrixStack.Entry entry = matrixStack.peek();
+        Camera camera = context.camera();
+        double camX = camera.getPos().x;
+        double camY = camera.getPos().y;
+        double camZ = camera.getPos().z;
+
+        VertexConsumerProvider consumers = context.consumers();
+        VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
+
+        float a = (float) (1 - camX);
+        float b = (float) (1 - camY);
+        float c = (float) (1 - camZ);
+        float d = (float) (2 - camX);
+        float e = (float) (2 - camY);
+        float f = (float) (2 - camZ);
+        float t = MathHelper.sqrt(3);
+
+        consumer.vertex(entry.getPositionMatrix(), a, b, c).color(0xFFFF0000).normal(entry.getNormalMatrix(), 1 / t,
+                1 / t, 1 / t).next();
+        consumer.vertex(entry.getPositionMatrix(), d, e, f).color(0xFFFF0000).normal(entry.getNormalMatrix(), 1 / t,
+                1 / t, 1 / t).next();
+
+        matrixStack.pop();
+    }
+
+    public void onBeforeDebugRender2(WorldRenderContext context) {
+        MatrixStack matrixStack = context.matrixStack();
+        matrixStack.push();
+        Camera camera = context.camera();
+        double camX = camera.getPos().x;
+        double camY = camera.getPos().y;
+        double camZ = camera.getPos().z;
+
+        BlockPos blockPos1 = new BlockPos(0, 0, 0);
+        Box box = new Box(blockPos1).expand(0.002).offset(-camX, -camY, -camZ);
+
+
+
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder vertexConsumer = tessellator.getBuffer();
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.disableTexture();
+        MatrixStack matrixStack1 = RenderSystem.getModelViewStack();
+        matrixStack1.push();
+        matrixStack1.loadIdentity();
+        RenderSystem.applyModelViewMatrix();
+        // RenderSystem.lineWidth(6.0f);
+
+        vertexConsumer.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
+
+        Matrix4f posMatrix = matrixStack.peek().getPositionMatrix();
+        Matrix3f normMatrix = matrixStack.peek().getNormalMatrix();
+
+        float a = (float) (2.0 - camX);
+        float b = (float) (2.0 - camY);
+        float c = (float) (2.0 - camZ);
+        float d = (float) (3.0 - camX);
+        float e = (float) (2.0 - camY);
+        float f = (float) (2.0 - camZ);
+        float t = MathHelper.sqrt(1);
+
+        vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 0, 0, -1).next();
+        vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 0, 0, -1).next();
+
+        tessellator.draw();
+
+		RenderSystem.enableTexture();
+        RenderSystem.disableBlend();
+        matrixStack1.pop();
+        RenderSystem.applyModelViewMatrix();
+
+        matrixStack.pop();
+    }
 
 
 }
