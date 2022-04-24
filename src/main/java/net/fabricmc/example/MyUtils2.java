@@ -140,7 +140,7 @@ public class MyUtils2 {
             }
         });
         WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
-            if (false) {
+            if (true) {
                 onBeforeDebugRender(context);
             }
         });
@@ -502,13 +502,19 @@ public class MyUtils2 {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.setShader(GameRenderer::getRenderTypeLinesShader);
         RenderSystem.disableTexture();
+        RenderSystem.disableCull();
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+
         MatrixStack matrixStack1 = RenderSystem.getModelViewStack();
         matrixStack1.push();
         matrixStack1.loadIdentity();
         RenderSystem.applyModelViewMatrix();
-        // RenderSystem.lineWidth(6.0f);
+        RenderSystem.lineWidth(6.0f);
 
         vertexConsumer.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
 
@@ -523,12 +529,16 @@ public class MyUtils2 {
         float f = (float) (2.0 - camZ);
         float t = MathHelper.sqrt(1);
 
-        vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 0, 0, -1).next();
-        vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 0, 0, -1).next();
+        vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
+        vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
 
         tessellator.draw();
 
-		RenderSystem.enableTexture();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableCull();
+        RenderSystem.enableTexture();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
         matrixStack1.pop();
         RenderSystem.applyModelViewMatrix();
