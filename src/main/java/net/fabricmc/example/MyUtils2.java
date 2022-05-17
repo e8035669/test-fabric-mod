@@ -24,6 +24,8 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.math.*;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.source.BiomeAccess;
 import org.apache.logging.log4j.LogManager;
@@ -515,7 +517,7 @@ public class MyUtils2 {
         matrixStack1.push();
         matrixStack1.loadIdentity();
         RenderSystem.applyModelViewMatrix();
-        RenderSystem.lineWidth(6.0f);
+        RenderSystem.lineWidth(2.0f);
 
         vertexConsumer.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
 
@@ -533,10 +535,15 @@ public class MyUtils2 {
         vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
         vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
 
+        drawLine(new Vec3d(2, 2, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
         drawLine(new Vec3d(2, 2, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
         drawLine(new Vec3d(3, 3, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
         drawLine(new Vec3d(3, 3, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
 
+        VoxelShapes.fullCube().offset(4, 2, 2).forEachEdge((minX, minY, minZ, maxX, maxY, maxZ) -> {
+            drawLine(new Vec3d(minX, minY, minZ), new Vec3d(maxX, maxY, maxZ),
+                    0xFF00FFFF, camera.getPos(), vertexConsumer, matrixStack);
+        });
 
         tessellator.draw();
 
