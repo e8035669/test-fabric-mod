@@ -146,11 +146,12 @@ public class MyUtils2 {
                 onBeforeDebugRender(context);
             }
         });
-        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
+        WorldRenderEvents.END.register(context -> {
             if (true) {
                 onBeforeDebugRender2(context);
             }
         });
+
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
