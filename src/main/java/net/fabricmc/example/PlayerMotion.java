@@ -4,9 +4,12 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.ai.goal.LookAtEntityGoal;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Position;
 import net.minecraft.util.math.Vec3d;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +17,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class PlayerMotion {
+    public static final Logger LOGGER = LogManager.getLogger("PlayerMotion");
 
     private MinecraftClient client;
     private List<Tickable> tasks;
@@ -70,6 +74,10 @@ public class PlayerMotion {
 
     public void send(Runnable runnable) {
         tasks.add(new CallbackTask(runnable));
+    }
+
+    public void walkFollowPath(WalkPath walkPath) {
+        tasks.add(new WalkFollowPathTask(client, walkPath));
     }
 }
 
@@ -128,14 +136,14 @@ class WalkToTask implements Tickable {
 
         boolean ret = true;
 
-        var yaw = this.getTargetYaw();
-        var pitch = this.getTargetPitch();
+        var yaw = MoveHelper.getTargetYaw(player, pos);
+        var pitch = MoveHelper.getTargetPitch(player, pos);
         if (yaw.isPresent()) {
-            player.setYaw(changeAngle(player.getYaw(), yaw.get(), 1.5f));
+            player.setYaw(MoveHelper.changeAngle(player.getYaw(), yaw.get(), 1.5f));
         }
 
         if (pitch.isPresent()) {
-            player.setPitch(changeAngle(player.getPitch(), pitch.get(), 1.0f));
+            player.setPitch(MoveHelper.changeAngle(player.getPitch(), pitch.get(), 1.0f));
         }
 
         if (MathHelper.abs(MathHelper.subtractAngles(player.getYaw(), yaw.get())) < 45) {
@@ -162,31 +170,6 @@ class WalkToTask implements Tickable {
 
         return ret;
     }
-
-    protected Optional<Float> getTargetPitch() {
-        double d = pos.x - this.player.getX();
-        double e = pos.y - this.player.getEyeY();
-        double f = pos.z - this.player.getZ();
-        double g = Math.sqrt(d * d + f * f);
-        return Math.abs(e) > (double)1.0E-5f || Math.abs(g) > (double)1.0E-5f ?
-                Optional.of((float) -Math.toDegrees(MathHelper.atan2(e, g))) :
-                Optional.empty();
-    }
-
-    protected Optional<Float> getTargetYaw() {
-        double d = pos.x - this.player.getX();
-        double e = pos.z - this.player.getZ();
-        return Math.abs(e) > (double)1.0E-5f || Math.abs(d) > (double)1.0E-5f ?
-                Optional.of((float) (Math.toDegrees(MathHelper.atan2(e, d))) - 90.0f) :
-                Optional.empty();
-    }
-
-    protected float changeAngle(float from, float to, float max) {
-        float f = MathHelper.subtractAngles(from, to);
-        float g = MathHelper.clamp(f, -max, max);
-        return from + g;
-    }
-
 }
 
 class CallbackTask implements Tickable {
@@ -202,3 +185,113 @@ class CallbackTask implements Tickable {
         return false;
     }
 }
+
+class WalkFollowPathTask implements Tickable {
+    public static final Logger LOGGER = LogManager.getLogger("WalkFollowPathTask");
+
+    private MinecraftClient client;
+    private ClientPlayerEntity player;
+    private WalkPath walkPath;
+
+    private int curIdx;
+
+
+    public WalkFollowPathTask(MinecraftClient client, WalkPath walkPath) {
+        this.client = client;
+        this.player = client.player;
+        this.walkPath = walkPath;
+        this.curIdx = 0;
+    }
+
+    @Override
+    public boolean tick() {
+
+        boolean isIndexUpdate = false;
+        if (Objects.equals(walkPath.get(curIdx + 1).withY(0), player.getBlockPos().withY(0))) {
+            curIdx = curIdx + 1;
+            LOGGER.info(String.format("Update current index %d", curIdx));
+            isIndexUpdate = true;
+        }
+
+        if (curIdx == walkPath.size() - 1) {
+            // finish
+            LOGGER.info("Task finish");
+            client.options.forwardKey.setPressed(false);
+            client.options.leftKey.setPressed(false);
+            client.options.rightKey.setPressed(false);
+            client.options.jumpKey.setPressed(false);
+            return false;
+        }
+
+        if (walkPath.get(curIdx).withY(0).getManhattanDistance(player.getBlockPos().withY(0)) > 10) {
+            LOGGER.info("Not on the current path, exit.");
+            client.options.forwardKey.setPressed(false);
+            client.options.leftKey.setPressed(false);
+            client.options.rightKey.setPressed(false);
+            client.options.jumpKey.setPressed(false);
+            return false;
+        }
+
+        BlockPos currentBlock = walkPath.get(curIdx);
+        BlockPos targetBlock = walkPath.get(curIdx + 1);
+        int heightDiff = targetBlock.getY() - currentBlock.getY();
+
+        float targetPitch = 20f;
+
+        // if (heightDiff > 0) {
+        //     targetPitch = 10f;
+        // }
+        // if (heightDiff < 0) {
+        //     targetPitch = 60f;
+        // }
+
+        Optional<Float> targetYaw = MoveHelper.getTargetYaw(
+                Vec3d.ofCenter(currentBlock), Vec3d.ofCenter(targetBlock)
+        );
+
+        player.setPitch(MoveHelper.changeAngle(player.getPitch(), targetPitch, 1.0f));
+        if (targetYaw.isPresent()) {
+            player.setYaw(MoveHelper.changeAngle(player.getYaw(), targetYaw.get(), 10.0f));
+        }
+        if (MathHelper.abs(MathHelper.wrapDegrees(player.getYaw() - targetYaw.get())) < 10) {
+            client.options.forwardKey.setPressed(true);
+            client.options.sneakKey.setPressed(false);
+        } else {
+            client.options.forwardKey.setPressed(false);
+            client.options.sneakKey.setPressed(true);
+        }
+
+        boolean needJump = false;
+        if (targetBlock.subtract(currentBlock).getY() > 0) {
+            needJump = true;
+        }
+
+        if (needJump && targetBlock.getY() - player.getY() > 0.5) {
+            client.options.jumpKey.setPressed(true);
+        } else {
+            client.options.jumpKey.setPressed(false);
+        }
+        Vec3d posOrig = player.getPos();
+        Vec3d pos1 = posOrig.rotateY(targetYaw.get() * MathHelper.RADIANS_PER_DEGREE);
+        Vec3d pos2 = Vec3d.ofBottomCenter(targetBlock).rotateY(targetYaw.get() * MathHelper.RADIANS_PER_DEGREE);
+
+        if (isIndexUpdate) {
+            LOGGER.info(String.format("Orig:%s %s and %s", posOrig, pos1, pos2));
+        }
+
+        if (pos2.getX() - pos1.getX() > 0.3) {
+            client.options.leftKey.setPressed(true);
+            client.options.rightKey.setPressed(false);
+        } else if (pos2.getX() - pos1.getX() < -0.3) {
+            client.options.rightKey.setPressed(true);
+            client.options.leftKey.setPressed(false);
+        } else {
+            client.options.rightKey.setPressed(false);
+            client.options.leftKey.setPressed(false);
+        }
+
+
+        return true;
+    }
+}
+

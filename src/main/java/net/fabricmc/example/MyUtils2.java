@@ -24,9 +24,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.math.*;
-import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
-import net.minecraft.world.World;
 import net.minecraft.world.biome.source.BiomeAccess;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,7 +53,7 @@ public class MyUtils2 {
     }
 
     private boolean isPrintInformations = false;
-    private Optional<List<BlockPos>> paths = Optional.empty();
+    private Optional<WalkPath> paths = Optional.empty();
 
     public void registerCommands() {
         ClientCommandManager.DISPATCHER.register(literal("detectBlock")
@@ -120,7 +118,7 @@ public class MyUtils2 {
                                 .then(argument("z", IntegerArgumentType.integer())
                                         .executes(this::executeAutoMove)))));
 
-        ClientCommandManager.DISPATCHER.register(literal("tempMove").executes(this::executeTempMove));
+        ClientCommandManager.DISPATCHER.register(literal("autoMove2").executes(this::executeAutomove2));
 
         ClientCommandManager.DISPATCHER.register(literal("pathFind")
                 .then(argument("x", IntegerArgumentType.integer())
@@ -136,13 +134,13 @@ public class MyUtils2 {
 
         HudRenderCallback.EVENT.register(this::onHudRender);
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            if (true) {
+            if (false) {
                 onAfterEntities(context);
                 // onBeforeDebugRender2(context);
             }
         });
         WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
-            if (true) {
+            if (false) {
                 onBeforeDebugRender(context);
             }
         });
@@ -236,15 +234,19 @@ public class MyUtils2 {
     }
 
 
-    private int executeTempMove(CommandContext<FabricClientCommandSource> context) {
+    private int executeAutomove2(CommandContext<FabricClientCommandSource> context) {
+        if (paths.isEmpty()) {
+            return 1;
+        }
 
         executor.schedule(() -> {
             ClientPlayerEntity player = context.getSource().getPlayer();
             Mouse mouse = context.getSource().getClient().mouse;
-            Vec3d pos = Vec3d.ofBottomCenter(player.getBlockPos().add(10, 0, 10));
             HotPlugMouse.of(mouse).unplugMouse();
+
+            BlockPos pos = paths.get().get(paths.get().size() - 1);
             player.sendMessage(new LiteralText("Move to %s".formatted(pos)), false);
-            playerMotion.walkTo(pos);
+            playerMotion.walkFollowPath(paths.get());
             playerMotion.send(() -> {
                 player.sendMessage(new LiteralText("Move done"), false);
                 HotPlugMouse.of(mouse).plugMouse();
@@ -285,24 +287,26 @@ public class MyUtils2 {
         executor.execute(() -> {
             ClientPlayerEntity player = client.player;
             BlockPos start = player.getBlockPos();
-            BlockPos end = start.add(x, y, z);
+            Optional<BlockPos> endPos = AStarSearch2.verticalFindFloor(client.world, start.add(x, y, z), -30, 30);
+            BlockPos end = endPos.orElseGet(() -> start.add(x, y, z));
 
-            AStarSearch aStarSearch = new AStarSearch(client, start, end);
+            AStarSearch2 aStarSearch = new AStarSearch2(client, start, end);
             var result = aStarSearch.search();
 
             if (result.isPresent()) {
-                List<BlockPos> list = result.get();
-                StringBuilder sb = new StringBuilder();
-                sb.append("Path: ");
-                for (BlockPos b : list) {
-                    sb.append("(").append(b.getX())
-                            .append(",").append(b.getY())
-                            .append(",").append(b.getZ())
-                            .append(")");
-                    sb.append("->");
-                }
+                WalkPath list = result.get();
+                // StringBuilder sb = new StringBuilder();
+                // sb.append("Path: ");
+                // for (BlockPos b : list) {
+                //     sb.append("(").append(b.getX())
+                //             .append(",").append(b.getY())
+                //             .append(",").append(b.getZ())
+                //             .append(")");
+                //     sb.append("->");
+                // }
                 paths = Optional.of(list);
-                player.sendMessage(new LiteralText(sb.toString()), false);
+                // player.sendMessage(new LiteralText(sb.toString()), false);
+                player.sendMessage(new LiteralText("Path founded"), false);
             } else {
                 paths = Optional.empty();
                 player.sendMessage(new LiteralText("Path not found"), false);
@@ -386,78 +390,6 @@ public class MyUtils2 {
         RenderSystem.enableTexture();
         RenderSystem.disableBlend();
     }
-    /*
-    public void onAfterEntities(WorldRenderContext context) {
-        MatrixStack matrixStack = context.matrixStack();
-        VertexConsumerProvider vertexConsumerProvider = context.consumers();
-        Camera camera = context.camera();
-        double camX = camera.getPos().x;
-        double camY = camera.getPos().y;
-        double camZ = camera.getPos().z;
-
-        // VertexConsumer vertexConsumer = vertexConsumerProvider.getBuffer(RenderLayer.getLineStrip());
-        // vertexConsumer.vertex(0, 1, 0).normal(0, 2, 0).next();
-
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        RenderSystem.lineWidth(2.0f);
-        RenderSystem.disableTexture();
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-
-        BlockPos blockPos = context.camera().getBlockPos().add(0, 0, -3);
-        BlockPos blockPos1 = new BlockPos(0, 0, 0);
-        Box box = new Box(blockPos1).expand(0.002).offset(-camX, -camY, -camZ);
-
-        float d = (float)box.minX;
-        float e = (float)box.minY;
-        float f = (float)box.minZ;
-        float g = (float)box.maxX;
-        float h = (float)box.maxY;
-        float i = (float)box.maxZ;
-
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder bufferBuilder = tessellator.getBuffer();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        bufferBuilder.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
-
-        Matrix4f positionMatrix = matrixStack.peek().getPositionMatrix();
-        bufferBuilder.vertex(positionMatrix, d, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, e, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, g, h, i).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-        bufferBuilder.vertex(positionMatrix, d, e, f).color(1.0f, 1.0f, 1.0f, 1.0f).next();
-
-        tessellator.draw();
-
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.enableTexture();
-        RenderSystem.disableBlend();
-    }
-
-     */
 
     public void onBeforeDebugRender(WorldRenderContext context) {
         MatrixStack matrixStack = context.matrixStack();
@@ -518,7 +450,7 @@ public class MyUtils2 {
         matrixStack1.push();
         matrixStack1.loadIdentity();
         RenderSystem.applyModelViewMatrix();
-        RenderSystem.lineWidth(2.0f);
+        RenderSystem.lineWidth(3.0f);
 
         vertexConsumer.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
 
@@ -545,6 +477,29 @@ public class MyUtils2 {
             drawLine(new Vec3d(minX, minY, minZ), new Vec3d(maxX, maxY, maxZ),
                     0xFF00FFFF, camera.getPos(), vertexConsumer, matrixStack);
         });
+
+
+        if (paths.isPresent()) {
+            WalkPath path = paths.get();
+
+            for (int i = 0; i < path.size() - 1; ++i) {
+                BlockPos pos1 = path.get(i);
+                BlockPos pos2 = path.get(i + 1);
+                if (pos1.getY() - pos2.getY() == 0) {
+                    Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
+                    Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
+                    drawLine(vec1, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                } else {
+                    Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
+                    Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
+                    Vec3d vec3 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec1.y, (vec1.getZ() + vec2.getZ()) / 2);
+                    Vec3d vec4 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec2.y, (vec1.getZ() + vec2.getZ()) / 2);
+                    drawLine(vec1, vec3, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    drawLine(vec3, vec4, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    drawLine(vec4, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                }
+            }
+        }
 
         tessellator.draw();
 

@@ -7,6 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.Pair;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.system.CallbackI;
 
@@ -27,9 +28,9 @@ public class AStarSearch {
         PriorityQueue<PriBlockPos> frontier = new PriorityQueue<>();
         frontier.add(new PriBlockPos(0, start));
         Map<BlockPos, Optional<BlockPos>> cameFrom = new HashMap<>();
-        Map<BlockPos, Integer> costSoFar = new HashMap<>();
+        Map<BlockPos, Double> costSoFar = new HashMap<>();
         cameFrom.put(start, Optional.empty());
-        costSoFar.put(start, 0);
+        costSoFar.put(start, 0.0);
         boolean isFound = false;
 
         while (!frontier.isEmpty()) {
@@ -41,10 +42,10 @@ public class AStarSearch {
             }
 
             for (BlockPos next : findNeighbors(current.blockPos)) {
-                int newCost = costSoFar.get(current.blockPos) + getCostOf(current.blockPos, next);
+                double newCost = costSoFar.get(current.blockPos) + getCostOf(current.blockPos, next);
                 if (!cameFrom.containsKey(next) || newCost < costSoFar.get(next)) {
                     costSoFar.put(next, newCost);
-                    int priority = newCost + heuristic(next, end);
+                    double priority = newCost + heuristic(next, end);
                     frontier.add(new PriBlockPos(priority, next));
                     cameFrom.put(next, Optional.of(current.blockPos));
                 }
@@ -67,12 +68,14 @@ public class AStarSearch {
         }
     }
 
-    public int heuristic(BlockPos b1, BlockPos b2) {
-        return b1.getManhattanDistance(b2);
+    public double heuristic(BlockPos b1, BlockPos b2) {
+        // return b1.getManhattanDistance(b2);
+        return MathHelper.square(b1.getSquaredDistance(b2));
     }
 
-    public int getCostOf(BlockPos b1, BlockPos b2) {
+    public double getCostOf(BlockPos b1, BlockPos b2) {
         return b1.getManhattanDistance(b2);
+        // return MathHelper.square(b1.getSquaredDistance(b2));
     }
 
     public List<BlockPos> findNeighbors(BlockPos blockPos) {
@@ -107,19 +110,20 @@ public class AStarSearch {
 
         return ret;
     }
+
+    private class PriBlockPos implements Comparable<PriBlockPos> {
+        public double priority;
+        public BlockPos blockPos;
+
+        public PriBlockPos(double priority, BlockPos blockPos) {
+            this.priority = priority;
+            this.blockPos = blockPos;
+        }
+
+        @Override
+        public int compareTo(@NotNull PriBlockPos o) {
+            return Double.compare(this.priority, o.priority);
+        }
+    }
 }
 
-class PriBlockPos implements Comparable<PriBlockPos> {
-    public int priority;
-    public BlockPos blockPos;
-
-    public PriBlockPos(int priority, BlockPos blockPos) {
-        this.priority = priority;
-        this.blockPos = blockPos;
-    }
-
-    @Override
-    public int compareTo(@NotNull PriBlockPos o) {
-        return this.priority - o.priority;
-    }
-}
