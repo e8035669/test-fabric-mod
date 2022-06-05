@@ -39,7 +39,7 @@ public class AStarSearch2 {
 
             if (current.blockPos.equals(end)) {
                 isFound = true;
-                //break;
+                break;
             }
 
             for (BlockPos next : findNeightbors2(current.blockPos)) {
@@ -71,12 +71,20 @@ public class AStarSearch2 {
 
     public double heuristic(BlockPos b1, BlockPos b2) {
         // return b1.getManhattanDistance(b2);
-        return MathHelper.square(b1.getSquaredDistance(b2));
+        // return MathHelper.square(b1.getSquaredDistance(b2));
+        BlockPos diff = b1.subtract(b2);
+        int[] nums = new int[]{MathHelper.abs(diff.getX()), MathHelper.abs(diff.getY()),
+                MathHelper.abs(diff.getZ())};
+        Arrays.sort(nums);
+        for (int i = nums.length - 1; i > 0; i--) {
+            nums[i] -= nums[i - 1];
+        }
+        return nums[0] * MathHelper.sqrt(3) + nums[1] * MathHelper.sqrt(2) + nums[2];
     }
 
     public double getCostOf(BlockPos b1, BlockPos b2) {
-        return b1.getManhattanDistance(b2);
-        // return MathHelper.square(b1.getSquaredDistance(b2));
+        // return b1.getManhattanDistance(b2);
+        return MathHelper.sqrt((float)b1.getSquaredDistance(b2));
     }
 
 
@@ -173,8 +181,7 @@ public class AStarSearch2 {
                 } else {
                     // 斜角方塊同樣高或是較低，則那兩邊方塊也要跟我一樣高或較低
                     if (side1.get().getY() - blockPos.getY() <= 0
-                            && side2.get().getY() - blockPos.getY() <= 0
-                            && side1.get().getY() == side2.get().getY()) {
+                            && side2.get().getY() - blockPos.getY() <= 0) {
                         ret.add(b);
                     }
                 }
