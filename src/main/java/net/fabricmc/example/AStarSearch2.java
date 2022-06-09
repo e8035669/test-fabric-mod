@@ -140,22 +140,22 @@ public class AStarSearch2 {
 
     public List<BlockPos> findNeightbors2(BlockPos blockPos) {
         Optional<BlockPos>[] floors = new Optional[]{
-                verticalFindFloor(client.world, blockPos.add(-1, 0, -1), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(-1, 0, 0), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(-1, 0, 1), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(0, 0, -1), -4, 1),
+                verticalFindFloor(client.world, blockPos.add(-1, 0, -1), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(-1, 0, 0), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(-1, 0, 1), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(0, 0, -1), -3, 1),
                 Optional.of(blockPos),
-                verticalFindFloor(client.world, blockPos.add(0, 0, 1), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, -1), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, 0), -4, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, 1), -4, 1)
+                verticalFindFloor(client.world, blockPos.add(0, 0, 1), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(1, 0, -1), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(1, 0, 0), -3, 1),
+                verticalFindFloor(client.world, blockPos.add(1, 0, 1), -3, 1)
         };
 
         List<BlockPos> ret = new ArrayList<>();
 
         // 前後左右的方塊
         for (int i : new int[] {1, 3, 5, 7}) {
-            if (floors[i].isPresent()) {
+            if (floors[i].isPresent() && canPassthrough(client.world, blockPos, floors[i].get())) {
                 ret.add(floors[i].get());
             }
         }
@@ -173,7 +173,8 @@ public class AStarSearch2 {
             Optional<BlockPos> side1 = floors[corner.getMiddle()];
             Optional<BlockPos> side2 = floors[corner.getRight()];
 
-            if (cor.isPresent() && side1.isPresent() && side2.isPresent()) {
+            if (cor.isPresent() && side1.isPresent() && side2.isPresent() && canPassthrough(client.world, blockPos,
+                    cor.get())) {
                 BlockPos b = cor.get();
                 if (b.getY() - blockPos.getY() > 0) {
                     // 高一格的話，可以跳斜角方塊
@@ -247,6 +248,29 @@ public class AStarSearch2 {
             ret = true;
         }
 
+        return ret;
+    }
+
+    public static boolean canPassthrough(ClientWorld world, BlockPos from, BlockPos to) {
+
+        boolean ret = true;
+
+        // 往上跳，檢查頂頭
+        if (to.getY() - from.getY() > 0) {
+            BlockPos blockAtHead = from.up(2);
+            ret = world.getBlockState(blockAtHead).canPathfindThrough(world, blockAtHead, NavigationType.AIR);
+        }
+
+        //  往下跳，檢查往下跳的路上都有空格
+        if (to.getY() - from.getY() < 0) {
+            for (int i = to.getY(); i <= from.getY() + 1; ++i) {
+                BlockPos blockPos = to.withY(i);
+                ret &= world.getBlockState(blockPos).canPathfindThrough(world, blockPos, NavigationType.AIR);
+                if (!ret) {
+                    break;
+                }
+            }
+        }
         return ret;
     }
 

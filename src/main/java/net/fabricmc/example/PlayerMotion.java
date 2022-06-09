@@ -279,10 +279,10 @@ class WalkFollowPathTask implements Tickable {
             LOGGER.info(String.format("Orig:%s %s and %s", posOrig, pos1, pos2));
         }
 
-        if (pos2.getX() - pos1.getX() > 0.3) {
+        if (pos2.getX() - pos1.getX() > 0.19) {
             client.options.leftKey.setPressed(true);
             client.options.rightKey.setPressed(false);
-        } else if (pos2.getX() - pos1.getX() < -0.3) {
+        } else if (pos2.getX() - pos1.getX() < -0.19) {
             client.options.rightKey.setPressed(true);
             client.options.leftKey.setPressed(false);
         } else {
