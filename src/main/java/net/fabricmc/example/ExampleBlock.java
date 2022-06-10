@@ -3,7 +3,7 @@ package net.fabricmc.example;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -19,7 +19,7 @@ public class ExampleBlock extends Block {
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (!world.isClient) {
-            player.sendMessage(new LiteralText("Hello, world!"), false);
+            player.sendMessage(Text.of("Hello, world!"), false);
         }
         return ActionResult.SUCCESS;
         // return super.onUse(state, world, pos, player, hand, hit);

@@ -5,8 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.example.mixin.BiomeAccessMixin;
-import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
-import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -22,7 +22,7 @@ import net.minecraft.command.argument.BlockStateArgument;
 import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.*;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.biome.source.BiomeAccess;
@@ -33,8 +33,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.*;
 
-import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.argument;
-import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.literal;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 public class MyUtils2 {
     public static final Logger LOGGER = LogManager.getLogger("MyUtils2");
@@ -43,6 +43,33 @@ public class MyUtils2 {
     private final BlockingQueue<PairedRenderableFuture<?>> runningTasks = new ArrayBlockingQueue<>(100);
     private final BlockingQueue<PairedRenderableFuture<?>> outlineEntityTasks = new ArrayBlockingQueue<>(100);
     private PlayerMotion playerMotion = null;
+    private boolean isPrintInformations = false;
+    private Optional<WalkPath> paths = Optional.empty();
+
+    private static void drawLine(Vec3d pos1, Vec3d pos2, int color, Vec3d cameraPos, BufferBuilder vertexConsumer,
+                                 MatrixStack matrixStack) {
+        MatrixStack.Entry entry = matrixStack.peek();
+        Matrix4f positionMatrix = entry.getPositionMatrix();
+        Matrix3f normalMatrix = entry.getNormalMatrix();
+        Vec3f diff = new Vec3f(pos2.subtract(pos1));
+        float t =
+                MathHelper.sqrt(diff.getX() * diff.getX() + diff.getY() * diff.getY() + diff.getZ() * diff.getZ());
+
+        float a = (float) (pos1.x - cameraPos.x);
+        float b = (float) (pos1.y - cameraPos.y);
+        float c = (float) (pos1.z - cameraPos.z);
+
+        vertexConsumer.vertex(positionMatrix, a, b, c).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
+                diff.getZ() / t).next();
+
+        float d = (float) (pos2.x - cameraPos.x);
+        float e = (float) (pos2.y - cameraPos.y);
+        float f = (float) (pos2.z - cameraPos.z);
+        //float t = MathHelper.sqrt(d * d + e * e + f * f);
+
+        vertexConsumer.vertex(positionMatrix, d, e, f).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
+                diff.getZ() / t).next();
+    }
 
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
@@ -52,80 +79,80 @@ public class MyUtils2 {
         return executor;
     }
 
-    private boolean isPrintInformations = false;
-    private Optional<WalkPath> paths = Optional.empty();
-
     public void registerCommands() {
-        ClientCommandManager.DISPATCHER.register(literal("detectBlock")
-                .then(argument("target", BlockStateArgumentType.blockState())
-                        .then(argument("range", IntegerArgumentType.integer(1, 999))
-                                .executes(this::executeDetectBlock)
-                        )
-                )
-        );
-        ClientCommandManager.DISPATCHER.register(literal("stopDetectBlock")
-                .executes(context -> {
-                    runningTasks.forEach(task -> task.cancel(false));
-                    runningTasks.clear();
-                    return 1;
-                })
-        );
-        ClientCommandManager.DISPATCHER.register(literal("detectEntities")
-                .then(argument("target", EntityArgumentType.entities())
-                        .executes(this::executeDetectEntities)
-                )
-        );
-        ClientCommandManager.DISPATCHER.register(literal("stopDetectEntities")
-                .executes(this::stopDetectEntities)
-        );
+        ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
+            dispatcher.register(literal("detectBlock")
+                    .then(argument("target", BlockStateArgumentType.blockState(registryAccess))
+                            .then(argument("range", IntegerArgumentType.integer(1, 999))
+                                    .executes(this::executeDetectBlock)
+                            )
+                    )
+            );
+            dispatcher.register(literal("stopDetectBlock")
+                    .executes(context -> {
+                        runningTasks.forEach(task -> task.cancel(false));
+                        runningTasks.clear();
+                        return 1;
+                    })
+            );
+            dispatcher.register(literal("detectEntities")
+                    .then(argument("target", EntityArgumentType.entities())
+                            .executes(this::executeDetectEntities)
+                    )
+            );
+            dispatcher.register(literal("stopDetectEntities")
+                    .executes(this::stopDetectEntities)
+            );
+
+            dispatcher.register(literal("getSeed")
+                    .executes(this::executeGetSeed)
+            );
+
+            dispatcher.register(literal("move")
+                    .then(argument("x", IntegerArgumentType.integer())
+                            .then(argument("y", IntegerArgumentType.integer())
+                                    .then(argument("z", IntegerArgumentType.integer())
+                                            .executes(this::executeMove))))
+            );
+
+            dispatcher.register(literal("openScreen")
+                    .executes(this::doOpenScreen)
+            );
+
+            dispatcher.register(literal("mouse")
+                    .then(literal("plug").executes(context -> {
+                        HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
+                        mouse.plugMouse();
+                        return 1;
+                    }))
+                    .then(literal("unplug").executes(context -> {
+                        HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
+                        mouse.unplugMouse();
+                        return 1;
+                    }))
+            );
+            dispatcher.register(literal("autoMove")
+                    .then(argument("x", IntegerArgumentType.integer())
+                            .then(argument("y", IntegerArgumentType.integer())
+                                    .then(argument("z", IntegerArgumentType.integer())
+                                            .executes(this::executeAutoMove)))));
+
+            dispatcher.register(literal("autoMove2").executes(this::executeAutomove2));
+
+            dispatcher.register(literal("pathFind")
+                    .then(argument("x", IntegerArgumentType.integer())
+                            .then(argument("y", IntegerArgumentType.integer())
+                                    .then(argument("z", IntegerArgumentType.integer())
+                                            .executes(this::executePathFind)))));
+        }));
+
+
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             runningTasks.forEach(task -> {
                 task.onRendering(context);
             });
             outlineEntityTasks.forEach(task -> task.onRendering(context));
         });
-
-        ClientCommandManager.DISPATCHER.register(literal("getSeed")
-                .executes(this::executeGetSeed)
-        );
-
-        ClientCommandManager.DISPATCHER.register(literal("move")
-                .then(argument("x", IntegerArgumentType.integer())
-                        .then(argument("y", IntegerArgumentType.integer())
-                                .then(argument("z", IntegerArgumentType.integer())
-                                        .executes(this::executeMove))))
-        );
-
-        ClientCommandManager.DISPATCHER.register(literal("openScreen")
-                .executes(this::doOpenScreen)
-        );
-
-        ClientCommandManager.DISPATCHER.register(literal("mouse")
-                .then(literal("plug").executes(context -> {
-                    HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
-                    mouse.plugMouse();
-                    return 1;
-                }))
-                .then(literal("unplug").executes(context -> {
-                    HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
-                    mouse.unplugMouse();
-                    return 1;
-                }))
-        );
-        ClientCommandManager.DISPATCHER.register(literal("autoMove")
-                .then(argument("x", IntegerArgumentType.integer())
-                        .then(argument("y", IntegerArgumentType.integer())
-                                .then(argument("z", IntegerArgumentType.integer())
-                                        .executes(this::executeAutoMove)))));
-
-        ClientCommandManager.DISPATCHER.register(literal("autoMove2").executes(this::executeAutomove2));
-
-        ClientCommandManager.DISPATCHER.register(literal("pathFind")
-                .then(argument("x", IntegerArgumentType.integer())
-                        .then(argument("y", IntegerArgumentType.integer())
-                                .then(argument("z", IntegerArgumentType.integer())
-                                        .executes(this::executePathFind)))));
-
 
         playerMotion = new PlayerMotion(MinecraftClient.getInstance());
         executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
@@ -149,7 +176,6 @@ public class MyUtils2 {
                 onBeforeDebugRender2(context);
             }
         });
-
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
@@ -190,7 +216,7 @@ public class MyUtils2 {
     private int executeGetSeed(CommandContext<FabricClientCommandSource> context) {
         BiomeAccess biomeAccess = context.getSource().getWorld().getBiomeAccess();
         long seed = ((BiomeAccessMixin) biomeAccess).getSeed();
-        context.getSource().sendFeedback(new LiteralText("Biomes Seed: %d".formatted(seed)));
+        context.getSource().sendFeedback(Text.of("Biomes Seed: %d".formatted(seed)));
         return 1;
     }
 
@@ -202,7 +228,7 @@ public class MyUtils2 {
         Vec3d pos = player.getPos();
 
         player.setPosition(pos.x + x, pos.y + y, pos.z + z);
-        context.getSource().sendFeedback(new LiteralText("Move (%d %d %d)".formatted(x, y, z)));
+        context.getSource().sendFeedback(Text.of("Move (%d %d %d)".formatted(x, y, z)));
         return 1;
     }
 
@@ -223,8 +249,8 @@ public class MyUtils2 {
     private void openScreen0() throws InterruptedException {
         MinecraftClient client = MinecraftClient.getInstance();
         client.send(() -> {
-            client.setScreen(new MyTestScreen(new LiteralText("My Test Screen"), client, this));
-            client.player.sendMessage(new LiteralText("Set Screen"), false);
+            client.setScreen(new MyTestScreen(Text.of("My Test Screen"), client, this));
+            client.player.sendMessage(Text.of("Set Screen"), false);
         });
         // Thread.sleep(1000);
         // playerMotion.moveForward(100);
@@ -232,7 +258,6 @@ public class MyUtils2 {
         // playerMotion.changeLookDirection(-1, 0, 100);
         // playerMotion.moveForward(100);
     }
-
 
     private int executeAutomove2(CommandContext<FabricClientCommandSource> context) {
         if (paths.isEmpty()) {
@@ -245,10 +270,10 @@ public class MyUtils2 {
             HotPlugMouse.of(mouse).unplugMouse();
 
             BlockPos pos = paths.get().get(paths.get().size() - 1);
-            player.sendMessage(new LiteralText("Move to %s".formatted(pos)), false);
+            player.sendMessage(Text.of("Move to %s".formatted(pos)), false);
             playerMotion.walkFollowPath(paths.get());
             playerMotion.send(() -> {
-                player.sendMessage(new LiteralText("Move done"), false);
+                player.sendMessage(Text.of("Move done"), false);
                 HotPlugMouse.of(mouse).plugMouse();
             });
 
@@ -266,10 +291,10 @@ public class MyUtils2 {
             Mouse mouse = context.getSource().getClient().mouse;
             Vec3d pos = Vec3d.ofBottomCenter(player.getBlockPos().add(x, y, z));
             HotPlugMouse.of(mouse).unplugMouse();
-            player.sendMessage(new LiteralText("Move to %s".formatted(pos)), false);
+            player.sendMessage(Text.of("Move to %s".formatted(pos)), false);
             playerMotion.walkTo(pos);
             playerMotion.send(() -> {
-                player.sendMessage(new LiteralText("Move done"), false);
+                player.sendMessage(Text.of("Move done"), false);
                 HotPlugMouse.of(mouse).plugMouse();
             });
 
@@ -306,15 +331,14 @@ public class MyUtils2 {
                 // }
                 paths = Optional.of(list);
                 // player.sendMessage(new LiteralText(sb.toString()), false);
-                player.sendMessage(new LiteralText("Path founded"), false);
+                player.sendMessage(Text.of("Path founded"), false);
             } else {
                 paths = Optional.empty();
-                player.sendMessage(new LiteralText("Path not found"), false);
+                player.sendMessage(Text.of("Path not found"), false);
             }
         });
         return 1;
     }
-
 
     public void onHudRender(MatrixStack matrixStack, float tickDelta) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -431,7 +455,6 @@ public class MyUtils2 {
         Box box = new Box(blockPos1).expand(0.002).offset(-camX, -camY, -camZ);
 
 
-
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder vertexConsumer = tessellator.getBuffer();
 
@@ -513,31 +536,6 @@ public class MyUtils2 {
         RenderSystem.applyModelViewMatrix();
 
         matrixStack.pop();
-    }
-
-    private static void drawLine(Vec3d pos1, Vec3d pos2, int color, Vec3d cameraPos, BufferBuilder vertexConsumer,
-                          MatrixStack matrixStack) {
-        MatrixStack.Entry entry = matrixStack.peek();
-        Matrix4f positionMatrix = entry.getPositionMatrix();
-        Matrix3f normalMatrix = entry.getNormalMatrix();
-        Vec3f diff = new Vec3f(pos2.subtract(pos1));
-        float t =
-                MathHelper.sqrt(diff.getX() * diff.getX() + diff.getY() * diff.getY() + diff.getZ() * diff.getZ());
-
-        float a = (float)(pos1.x - cameraPos.x);
-        float b = (float)(pos1.y - cameraPos.y);
-        float c = (float)(pos1.z - cameraPos.z);
-
-        vertexConsumer.vertex(positionMatrix, a, b, c).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
-                diff.getZ() / t).next();
-
-        float d = (float)(pos2.x - cameraPos.x);
-        float e = (float)(pos2.y - cameraPos.y);
-        float f = (float)(pos2.z - cameraPos.z);
-        //float t = MathHelper.sqrt(d * d + e * e + f * f);
-
-        vertexConsumer.vertex(positionMatrix, d, e, f).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
-                diff.getZ() / t).next();
     }
 
 

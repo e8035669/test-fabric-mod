@@ -1,18 +1,15 @@
 package net.fabricmc.example;
 
-import net.fabricmc.example.mixin.MinecraftClientMixin;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.util.InputUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Arrays;
-
 public class HotPlugMouse extends Mouse {
     public static final Logger LOGGER = LogManager.getLogger("HotPlugMouse");
 
-    private MinecraftClient client;
+    private final MinecraftClient client;
     private long window;
     private boolean isPlugged;
 
@@ -22,6 +19,10 @@ public class HotPlugMouse extends Mouse {
         this.window = 0;
         this.isPlugged = true;
         LOGGER.info("HotPlugMouse is work!");
+    }
+
+    public static HotPlugMouse of(Mouse mouse) {
+        return (HotPlugMouse) mouse;
     }
 
     @Override
@@ -59,15 +60,15 @@ public class HotPlugMouse extends Mouse {
         isPlugged = false;
         super.unlockCursor();
         InputUtil.setMouseCallbacks(this.window,
-                (window, x, y) -> {},
-                (window, button, action, modifiers) -> {},
-                (window, offsetX, offsetY) -> {},
-                (window, count, names) -> {}
+                (window, x, y) -> {
+                },
+                (window, button, action, modifiers) -> {
+                },
+                (window, offsetX, offsetY) -> {
+                },
+                (window, count, names) -> {
+                }
         );
         FakeFocusable.of(client).setFakeFocus(true);
-    }
-
-    public static HotPlugMouse of(Mouse mouse) {
-        return (HotPlugMouse) mouse;
     }
 }

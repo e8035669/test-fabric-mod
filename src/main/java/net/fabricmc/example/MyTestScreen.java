@@ -6,15 +6,12 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
 import org.apache.commons.compress.utils.Lists;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -22,13 +19,11 @@ public class MyTestScreen extends Screen {
     public static final Logger LOGGER = LogManager.getLogger("MyTestScreen");
 
     private final List<ButtonWidget> buttons = Lists.newArrayList();
-    private MinecraftClient client;
-    private MyUtils2 myUtils2;
-
+    private final MinecraftClient client;
+    private final MyUtils2 myUtils2;
+    List<MouseKeyPresser> pressers;
     private ButtonWidget startScriptButton;
     private ButtonWidget2 button2;
-
-    List<MouseKeyPresser> pressers;
 
     protected MyTestScreen(Text title, MinecraftClient client, MyUtils2 myUtils2) {
         super(title);
@@ -44,25 +39,25 @@ public class MyTestScreen extends Screen {
         this.buttons.clear();
         this.buttons.add(this.addDrawableChild(
                 new ButtonWidget(this.width / 2 - 150, this.height / 2 - 100, 100, 20,
-                        new TranslatableText("jeff.text.test_button"), button -> {
-                    this.client.player.sendMessage(new LiteralText("Button click"), false);
+                        Text.translatable("jeff.text.test_button"), button -> {
+                    this.client.player.sendMessage(Text.of("Button click"), false);
                 })
         ));
         startScriptButton = new ButtonWidget(this.width / 2 + 50, this.height / 2 - 100, 100, 20,
-                new LiteralText("Start Script"), this::startScript);
+                Text.of("Start Script"), this::startScript);
         this.buttons.add(this.addDrawableChild(startScriptButton));
         button2 = new ButtonWidget2(this.width / 2 - 150, this.height / 2 - 60, 100, 20,
-                new LiteralText("Button2"), button -> {
-            this.client.player.sendMessage(new LiteralText("On Click"), false);
+                Text.of("Button2"), button -> {
+            this.client.player.sendMessage(Text.of("On Click"), false);
         }, button -> {
-            this.client.player.sendMessage(new LiteralText("On Release"), false);
+            this.client.player.sendMessage(Text.of("On Release"), false);
         });
         this.buttons.add(this.addDrawableChild(button2));
 
         int anchorX = this.width / 2 + 100;
         int anchorY = this.height / 2 + 30;
         this.buttons.add(this.addDrawableChild(new ButtonWidget2(
-                anchorX - 10, anchorY - 10, 20, 20, new LiteralText("˅"),
+                anchorX - 10, anchorY - 10, 20, 20, Text.of("˅"),
                 button -> {
                     this.client.options.backKey.setPressed(true);
                 },
@@ -71,7 +66,7 @@ public class MyTestScreen extends Screen {
                 }
         )));
         this.buttons.add(this.addDrawableChild(new ButtonWidget2(
-                anchorX - 10, anchorY - 35, 20, 20, new LiteralText("˄"),
+                anchorX - 10, anchorY - 35, 20, 20, Text.of("˄"),
                 button -> {
                     this.client.options.forwardKey.setPressed(true);
                 },
@@ -80,12 +75,12 @@ public class MyTestScreen extends Screen {
                 }
         )));
         this.buttons.add(this.addDrawableChild(new ButtonWidget2(
-                anchorX - 35, anchorY - 10, 20, 20, new LiteralText("˂"),
+                anchorX - 35, anchorY - 10, 20, 20, Text.of("˂"),
                 button -> this.client.options.leftKey.setPressed(true),
                 button -> this.client.options.leftKey.setPressed(false)
         )));
         this.buttons.add(this.addDrawableChild(new ButtonWidget2(
-                anchorX + 15, anchorY - 10, 20, 20, new LiteralText("˃"),
+                anchorX + 15, anchorY - 10, 20, 20, Text.of("˃"),
                 button -> this.client.options.rightKey.setPressed(true),
                 button -> this.client.options.rightKey.setPressed(false)
         )));
@@ -94,7 +89,7 @@ public class MyTestScreen extends Screen {
         int mouseAnchorY = this.height / 2 - 10;
 
         ButtonWidget2 leftMouseButton = new ButtonWidget2(
-                mouseAnchorX - 20, mouseAnchorY, 20, 20, new LiteralText("L"),
+                mouseAnchorX - 20, mouseAnchorY, 20, 20, Text.of("L"),
                 button -> this.client.options.attackKey.setPressed(true),
                 button -> this.client.options.attackKey.setPressed(false)
         );
@@ -102,7 +97,7 @@ public class MyTestScreen extends Screen {
         pressers.add(keyPresser);
         this.buttons.add(this.addDrawableChild(leftMouseButton));
         this.buttons.add(this.addDrawableChild(new ButtonWidget2(
-                mouseAnchorX + 20, mouseAnchorY, 20, 20, new LiteralText("R"),
+                mouseAnchorX + 20, mouseAnchorY, 20, 20, Text.of("R"),
                 button -> this.client.options.useKey.setPressed(true),
                 button -> this.client.options.useKey.setPressed(false)
         )));
@@ -156,9 +151,9 @@ public class MyTestScreen extends Screen {
 
     private class MouseKeyPresser {
 
-        private KeyBinding keyBinding;
-        private KeyPressable keyPressable;
-        private ButtonWidget2 button;
+        private final KeyBinding keyBinding;
+        private final KeyPressable keyPressable;
+        private final ButtonWidget2 button;
 
         public MouseKeyPresser(KeyBinding keyBinding, ButtonWidget2 button) {
             this.keyBinding = keyBinding;

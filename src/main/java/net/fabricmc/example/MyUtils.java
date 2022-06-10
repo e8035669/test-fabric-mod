@@ -1,19 +1,18 @@
 package net.fabricmc.example;
 
-import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.argument;
-import static net.fabricmc.fabric.api.client.command.v1.ClientCommandManager.literal;
-
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.example.mixin.WorldRendererMixin;
-import net.fabricmc.fabric.api.client.command.v1.ClientCommandManager;
-import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
-import net.minecraft.client.render.*;
-import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.OutlineVertexConsumerProvider;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.command.argument.BlockStateArgument;
 import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
@@ -24,7 +23,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -34,6 +33,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Optional;
+
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 public class MyUtils {
     public static final Logger LOGGER = LogManager.getLogger("MyUtils");
@@ -70,7 +72,7 @@ public class MyUtils {
                 client.player.getBlockZ(), hitResultStr);
 
 
-        client.player.sendMessage(new LiteralText(message), false);
+        client.player.sendMessage(Text.of(message), false);
     }
 
     public static void findNearestBlock(MinecraftClient client) {
@@ -79,7 +81,7 @@ public class MyUtils {
         if (item instanceof BlockItem blockItem) {
             Block blockInHand = blockItem.getBlock();
             String message = String.format("%s is Block", blockInHand.toString());
-            client.player.sendMessage(new LiteralText(message), false);
+            client.player.sendMessage(Text.of(message), false);
 
             BlockPos playerPos = client.player.getBlockPos();
 
@@ -108,7 +110,7 @@ public class MyUtils {
         } else {
             String message = String.format("%s is not a BlockItem",
                     item.toString());
-            client.player.sendMessage(new LiteralText(message), false);
+            client.player.sendMessage(Text.of(message), false);
         }
 
     }
@@ -169,13 +171,13 @@ public class MyUtils {
 
             if (foundBlock.isPresent()) {
                 context.getSource().sendFeedback(
-                        new LiteralText("Find %s at %s, Distance %.1f".formatted(
+                        Text.of("Find %s at %s, Distance %.1f".formatted(
                                 blockState.getBlockState().getBlock().toString(),
                                 foundBlock.get().toString(),
                                 context.getSource().getPlayer().getPos().distanceTo(Vec3d.ofCenter(foundBlock.get())))));
             } else {
                 context.getSource().sendFeedback(
-                        new LiteralText("Block %s not found".formatted(blockState.getBlockState().getBlock().toString()))
+                        Text.of("Block %s not found".formatted(blockState.getBlockState().getBlock().toString()))
                 );
             }
         });
@@ -184,13 +186,15 @@ public class MyUtils {
     }
 
     public static void registerMyCommands() {
-        ClientCommandManager.DISPATCHER.register(literal("findBlock")
-                .then(argument("target", BlockStateArgumentType.blockState())
-                        .then(argument("range", IntegerArgumentType.integer(1, 999))
-                                .executes(MyUtils::executeFindBlock)
-                        )
-                )
-        );
+        ClientCommandRegistrationCallback.EVENT.register(((dispatcher, registryAccess) -> {
+            dispatcher.register(literal("findBlock")
+                    .then(argument("target", BlockStateArgumentType.blockState(registryAccess))
+                            .then(argument("range", IntegerArgumentType.integer(1, 999))
+                                    .executes(MyUtils::executeFindBlock)
+                            )
+                    )
+            );
+        }));
     }
 
 
@@ -210,7 +214,7 @@ public class MyUtils {
                 double x = livingEntity.lastRenderX - cameraPos.x;
                 double y = livingEntity.lastRenderY - cameraPos.y;
                 double z = livingEntity.lastRenderZ - cameraPos.z;
-                wrc.matrixStack().translate(x, y+0.25+1, z);
+                wrc.matrixStack().translate(x, y + 0.25 + 1, z);
                 wrc.matrixStack().scale(0.5f, 0.5f, 0.5f);
 
                 MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(
@@ -227,7 +231,7 @@ public class MyUtils {
 
         HitResult hitResult = MinecraftClient.getInstance().crosshairTarget;
         if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-            BlockPos blockPos = ((BlockHitResult)hitResult).getBlockPos();
+            BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
             BlockState blockState = wrc.world().getBlockState(blockPos);
             if (!blockState.isAir() && wrc.world().getWorldBorder().contains(blockPos)) {
                 VertexConsumer vertexConsumer =
@@ -243,9 +247,5 @@ public class MyUtils {
 
             }
         }
-
     }
-
-
-
 }

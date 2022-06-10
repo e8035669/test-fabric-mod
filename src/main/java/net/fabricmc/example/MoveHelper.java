@@ -13,7 +13,7 @@ public class MoveHelper {
         double e = pos.y - player.getEyeY();
         double f = pos.z - player.getZ();
         double g = Math.sqrt(d * d + f * f);
-        return Math.abs(e) > (double)1.0E-5f || Math.abs(g) > (double)1.0E-5f ?
+        return Math.abs(e) > (double) 1.0E-5f || Math.abs(g) > (double) 1.0E-5f ?
                 Optional.of((float) -Math.toDegrees(MathHelper.atan2(e, g))) :
                 Optional.empty();
     }
@@ -25,7 +25,7 @@ public class MoveHelper {
     public static Optional<Float> getTargetYaw(Vec3d from, Vec3d target) {
         double d = target.x - from.getX();
         double e = target.z - from.getZ();
-        return Math.abs(e) > (double)1.0E-5f || Math.abs(d) > (double)1.0E-5f ?
+        return Math.abs(e) > (double) 1.0E-5f || Math.abs(d) > (double) 1.0E-5f ?
                 Optional.of((float) (Math.toDegrees(MathHelper.atan2(e, d))) - 90.0f) :
                 Optional.empty();
     }

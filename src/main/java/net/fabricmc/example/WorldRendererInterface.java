@@ -7,21 +7,20 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.shape.VoxelShape;
 
 public interface WorldRendererInterface {
-
-    BufferBuilderStorage getBufferBuilders();
-
-    void setForceOutline(boolean value);
-
-    boolean getForceOutline();
 
     static WorldRendererInterface of(WorldRenderer obj) {
         return (WorldRendererInterface) obj;
     }
 
+    BufferBuilderStorage getBufferBuilders();
+
+    boolean getForceOutline();
+
+    void setForceOutline(boolean value);
+
     void drawBlockOutline2(MatrixStack matrices, VertexConsumer vertexConsumer, Entity entity, double d,
-                                  double e, double f, BlockPos pos, BlockState state);
+                           double e, double f, BlockPos pos, BlockState state);
 
 }

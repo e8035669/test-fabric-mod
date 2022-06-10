@@ -7,8 +7,8 @@ import java.util.concurrent.*;
 
 public class PairedRenderableFuture<V> implements Renderable, Future<V> {
 
-    private ScheduledFuture<V> future;
-    private Renderable renderable;
+    private final ScheduledFuture<V> future;
+    private final Renderable renderable;
 
     private boolean canceled;
 

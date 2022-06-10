@@ -34,6 +34,11 @@ public class WorldRendererMixin implements WorldRendererInterface {
 
     private boolean isForceOutline;
 
+    @Shadow
+    private static void drawShapeOutline(MatrixStack matrices, VertexConsumer vertexConsumer, VoxelShape voxelShape,
+                                         double d, double e, double f, float g, float h, float i, float j) {
+    }
+
     @Override
     public BufferBuilderStorage getBufferBuilders() {
         return bufferBuilders;
@@ -65,21 +70,19 @@ public class WorldRendererMixin implements WorldRendererInterface {
     }
 
     @Override
+    public boolean getForceOutline() {
+        return isForceOutline;
+    }
+
+    @Override
     public void setForceOutline(boolean value) {
         isForceOutline = value;
     }
 
-    @Override
-    public boolean getForceOutline() { return isForceOutline; }
-
-    @Shadow
-    private static void drawShapeOutline(MatrixStack matrices, VertexConsumer vertexConsumer, VoxelShape voxelShape,
-                                         double d, double e, double f, float g, float h, float i, float j) {}
-
     public void drawBlockOutline2(MatrixStack matrices, VertexConsumer vertexConsumer, Entity entity, double d,
-                                 double e, double f, BlockPos pos, BlockState state) {
+                                  double e, double f, BlockPos pos, BlockState state) {
         drawShapeOutline(matrices, vertexConsumer, state.getOutlineShape(this.world, pos, ShapeContext.of(entity)),
-                (double)pos.getX() - d, (double)pos.getY() - e, (double)pos.getZ() - f,
+                (double) pos.getX() - d, (double) pos.getY() - e, (double) pos.getZ() - f,
                 0.0f, 0.0f, 0.0f, 0.4f);
     }
 

@@ -8,21 +8,83 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import org.apache.commons.compress.compressors.lz77support.LZ77Compressor;
 import org.apache.commons.lang3.tuple.Triple;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
 public class AStarSearch2 {
-    private MinecraftClient client;
-    private BlockPos start;
-    private BlockPos end;
+    private final MinecraftClient client;
+    private final BlockPos start;
+    private final BlockPos end;
 
     public AStarSearch2(MinecraftClient client, BlockPos start, BlockPos end) {
         this.client = client;
         this.start = start;
         this.end = end;
+    }
+
+    public static Optional<BlockPos> verticalFindFloor(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
+        for (int i = highest; i >= lowest; i--) {
+            boolean isFloor = isFloor2(world, blockPos.add(0, i, 0));
+            if (isFloor) {
+                return Optional.of(blockPos.add(0, i, 0));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public static boolean isFloor2(ClientWorld world, BlockPos blockPos) {
+        boolean ret = false;
+
+        List<BlockPos> verticalBlocks = List.of(
+                blockPos.down(),
+                blockPos,
+                blockPos.up(1),
+                blockPos.up(2)
+        );
+        List<BlockState> vertStates = verticalBlocks.stream().map(world::getBlockState).toList();
+
+        if (vertStates.get(0).isSolidBlock(world, verticalBlocks.get(0))
+                && vertStates.get(1).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)
+                && vertStates.get(2).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)) {
+            ret = true;
+        }
+
+        if (ret) {
+            return ret;
+        }
+
+        if (vertStates.get(1).isOf(Blocks.LILY_PAD)
+                && vertStates.get(2).isAir()
+                && vertStates.get(3).isAir()) {
+            ret = true;
+        }
+
+        return ret;
+    }
+
+    public static boolean canPassthrough(ClientWorld world, BlockPos from, BlockPos to) {
+
+        boolean ret = true;
+
+        // 往上跳，檢查頂頭
+        if (to.getY() - from.getY() > 0) {
+            BlockPos blockAtHead = from.up(2);
+            ret = world.getBlockState(blockAtHead).canPathfindThrough(world, blockAtHead, NavigationType.AIR);
+        }
+
+        //  往下跳，檢查往下跳的路上都有空格
+        if (to.getY() - from.getY() < 0) {
+            for (int i = to.getY(); i <= from.getY() + 1; ++i) {
+                BlockPos blockPos = to.withY(i);
+                ret &= world.getBlockState(blockPos).canPathfindThrough(world, blockPos, NavigationType.AIR);
+                if (!ret) {
+                    break;
+                }
+            }
+        }
+        return ret;
     }
 
     public Optional<WalkPath> search() {
@@ -84,11 +146,8 @@ public class AStarSearch2 {
 
     public double getCostOf(BlockPos b1, BlockPos b2) {
         // return b1.getManhattanDistance(b2);
-        return MathHelper.sqrt((float)b1.getSquaredDistance(b2));
+        return MathHelper.sqrt((float) b1.getSquaredDistance(b2));
     }
-
-
-
 
     public List<BlockPos> findNeighbors(BlockPos blockPos) {
         List<BlockPos> ret = new ArrayList<>();
@@ -154,7 +213,7 @@ public class AStarSearch2 {
         List<BlockPos> ret = new ArrayList<>();
 
         // 前後左右的方塊
-        for (int i : new int[] {1, 3, 5, 7}) {
+        for (int i : new int[]{1, 3, 5, 7}) {
             if (floors[i].isPresent() && canPassthrough(client.world, blockPos, floors[i].get())) {
                 ret.add(floors[i].get());
             }
@@ -210,72 +269,6 @@ public class AStarSearch2 {
 
         return ret;
     }
-
-    public static Optional<BlockPos> verticalFindFloor(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
-        for (int i = highest; i >= lowest; i--) {
-            boolean isFloor = isFloor2(world, blockPos.add(0, i, 0));
-            if (isFloor) {
-                return Optional.of(blockPos.add(0, i, 0));
-            }
-        }
-        return Optional.empty();
-    }
-
-    public static boolean isFloor2(ClientWorld world, BlockPos blockPos) {
-        boolean ret = false;
-
-        List<BlockPos> verticalBlocks = List.of(
-                blockPos.down(),
-                blockPos,
-                blockPos.up(1),
-                blockPos.up(2)
-        );
-        List<BlockState> vertStates = verticalBlocks.stream().map(world::getBlockState).toList();
-
-        if (vertStates.get(0).isSolidBlock(world, verticalBlocks.get(0))
-            && vertStates.get(1).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)
-            && vertStates.get(2).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)) {
-            ret = true;
-        }
-
-        if (ret) {
-            return ret;
-        }
-
-        if (vertStates.get(1).isOf(Blocks.LILY_PAD)
-                && vertStates.get(2).isAir()
-                && vertStates.get(3).isAir()) {
-            ret = true;
-        }
-
-        return ret;
-    }
-
-    public static boolean canPassthrough(ClientWorld world, BlockPos from, BlockPos to) {
-
-        boolean ret = true;
-
-        // 往上跳，檢查頂頭
-        if (to.getY() - from.getY() > 0) {
-            BlockPos blockAtHead = from.up(2);
-            ret = world.getBlockState(blockAtHead).canPathfindThrough(world, blockAtHead, NavigationType.AIR);
-        }
-
-        //  往下跳，檢查往下跳的路上都有空格
-        if (to.getY() - from.getY() < 0) {
-            for (int i = to.getY(); i <= from.getY() + 1; ++i) {
-                BlockPos blockPos = to.withY(i);
-                ret &= world.getBlockState(blockPos).canPathfindThrough(world, blockPos, NavigationType.AIR);
-                if (!ret) {
-                    break;
-                }
-            }
-        }
-        return ret;
-    }
-
-
-
 
     private class PriBlockPos implements Comparable<PriBlockPos> {
         public double priority;

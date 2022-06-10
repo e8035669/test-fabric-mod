@@ -6,7 +6,7 @@ import net.minecraft.text.Text;
 
 public class ButtonWidget2 extends ButtonWidget {
 
-    private ReleaseAction onRelease;
+    private final ReleaseAction onRelease;
     private boolean lastHovered;
     private boolean isPressed;
 

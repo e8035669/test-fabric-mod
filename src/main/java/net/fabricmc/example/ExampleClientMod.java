@@ -3,27 +3,17 @@ package net.fabricmc.example;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-// import org.lwjgl.glfw.GLFW;
 
 public class ExampleClientMod implements ClientModInitializer {
 
-    private class MySettings {
-        public boolean lastForward = false;
-        public boolean lastBackward = false;
-        public boolean lastLeft = false;
-        public boolean lastRight = false;
-    }
-
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(4);
-
 
     @Override
     public void onInitializeClient() {
@@ -81,7 +71,7 @@ public class ExampleClientMod implements ClientModInitializer {
 
             if (bindLeftMouse.wasPressed()) {
                 boolean isPressed = client.options.attackKey.isPressed();
-                client.player.sendMessage(new LiteralText(
+                client.player.sendMessage(Text.of(
                         String.format("Set attack to %s", !isPressed)), false);
                 client.options.attackKey.setPressed(!isPressed);
             }
@@ -93,5 +83,12 @@ public class ExampleClientMod implements ClientModInitializer {
         MyUtils2 myUtils2 = new MyUtils2();
         myUtils2.registerCommands();
 
+    }
+
+    private class MySettings {
+        public boolean lastForward = false;
+        public boolean lastBackward = false;
+        public boolean lastLeft = false;
+        public boolean lastRight = false;
     }
 }

@@ -1,23 +1,22 @@
 package net.fabricmc.example.mixin;
 
 import com.google.common.collect.Lists;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.example.EntitySelectorInterface;
-import net.fabricmc.fabric.api.client.command.v1.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.entity.Entity;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -38,12 +37,21 @@ public class EntitySelectorMixin implements EntitySelectorInterface {
     private Box box;
     @Shadow
     private TypeFilter<Entity, ?> entityFilter;
+
     @Shadow
-    private Predicate<Entity> getPositionPredicate(Vec3d pos) { return null; }
+    private Predicate<Entity> getPositionPredicate(Vec3d pos) {
+        return null;
+    }
+
     @Shadow
-    public boolean isLocalWorldOnly() { return false; }
+    public boolean isLocalWorldOnly() {
+        return false;
+    }
+
     @Shadow
-    private <T extends Entity> List<T> getEntities(Vec3d pos, List<T> entities) {return null;}
+    private <T extends Entity> List<T> getEntities(Vec3d pos, List<T> entities) {
+        return null;
+    }
 
     @Override
     public List<? extends Entity> getEntitiesClient(FabricClientCommandSource source) {
@@ -106,7 +114,7 @@ public class EntitySelectorMixin implements EntitySelectorInterface {
         Predicate<Entity> predicate = this.getPositionPredicate(vec3d);
         if (this.senderOnly) {
             if (source.getEntity() instanceof AbstractClientPlayerEntity && predicate.test(source.getEntity())) {
-                return Lists.newArrayList((AbstractClientPlayerEntity)source.getEntity());
+                return Lists.newArrayList((AbstractClientPlayerEntity) source.getEntity());
             }
             return Collections.emptyList();
         }

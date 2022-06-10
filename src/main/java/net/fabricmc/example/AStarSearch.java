@@ -1,22 +1,19 @@
 package net.fabricmc.example;
 
 import com.google.common.collect.Lists;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.Pair;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.system.CallbackI;
 
 import java.util.*;
 
 public class AStarSearch {
-    private MinecraftClient client;
-    private BlockPos start;
-    private BlockPos end;
+    private final MinecraftClient client;
+    private final BlockPos start;
+    private final BlockPos end;
 
     public AStarSearch(MinecraftClient client, BlockPos start, BlockPos end) {
         this.client = client;
