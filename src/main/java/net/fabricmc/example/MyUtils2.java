@@ -39,14 +39,18 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 public class MyUtils2 {
     public static final Logger LOGGER = LogManager.getLogger("MyUtils2");
 
-    private InformationOverlay informationOverlay = new InformationOverlay();
-
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     private final BlockingQueue<PairedRenderableFuture<?>> runningTasks = new ArrayBlockingQueue<>(100);
     private final BlockingQueue<PairedRenderableFuture<?>> outlineEntityTasks = new ArrayBlockingQueue<>(100);
+
+    private InformationOverlay informationOverlay = new InformationOverlay();
+
+    private XrayRender xrayRender = new XrayRender();
+
     private PlayerMotion playerMotion = null;
     private boolean isPrintInformations = false;
     private Optional<WalkPath> paths = Optional.empty();
+    private Optional<WalkPathRender> walkPathRender = Optional.empty();
 
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
@@ -135,6 +139,7 @@ public class MyUtils2 {
         executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
 
         HudRenderCallback.EVENT.register(informationOverlay);
+        WorldRenderEvents.END.register(xrayRender);
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             if (false) {
                 onAfterEntities(context);
@@ -144,11 +149,6 @@ public class MyUtils2 {
         WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
             if (false) {
                 onBeforeDebugRender(context);
-            }
-        });
-        WorldRenderEvents.END.register(context -> {
-            if (true) {
-                onBeforeDebugRender2(context);
             }
         });
     }
@@ -304,10 +304,15 @@ public class MyUtils2 {
                 //             .append(")");
                 //     sb.append("->");
                 // }
+                walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
                 paths = Optional.of(list);
+                walkPathRender = Optional.of(new WalkPathRender(list, 0xA0FFFFFF));
+                xrayRender.getRenderables().add(walkPathRender.get());
                 player.sendMessage(Text.of("Path founded"), false);
             } else {
+                walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
                 paths = Optional.empty();
+                walkPathRender = Optional.empty();
                 player.sendMessage(Text.of("Path not found"), false);
             }
         });
@@ -393,101 +398,5 @@ public class MyUtils2 {
 
         matrixStack.pop();
     }
-
-    public void onBeforeDebugRender2(WorldRenderContext context) {
-        MatrixStack matrixStack = context.matrixStack();
-        matrixStack.push();
-        Camera camera = context.camera();
-        double camX = camera.getPos().x;
-        double camY = camera.getPos().y;
-        double camZ = camera.getPos().z;
-
-        BlockPos blockPos1 = new BlockPos(0, 0, 0);
-        Box box = new Box(blockPos1).expand(0.002).offset(-camX, -camY, -camZ);
-
-
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder vertexConsumer = tessellator.getBuffer();
-
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        RenderSystem.setShader(GameRenderer::getRenderTypeLinesShader);
-        RenderSystem.disableTexture();
-        RenderSystem.disableCull();
-        RenderSystem.disableDepthTest();
-        // RenderSystem.depthMask(false);
-        RenderSystem.depthMask(true);
-
-        MatrixStack matrixStack1 = RenderSystem.getModelViewStack();
-        matrixStack1.push();
-        matrixStack1.loadIdentity();
-        RenderSystem.applyModelViewMatrix();
-        RenderSystem.lineWidth(3.0f);
-
-        vertexConsumer.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
-
-        Matrix4f posMatrix = matrixStack.peek().getPositionMatrix();
-        Matrix3f normMatrix = matrixStack.peek().getNormalMatrix();
-
-        float a = (float) (2.0 - camX);
-        float b = (float) (2.0 - camY);
-        float c = (float) (2.0 - camZ);
-        float d = (float) (3.0 - camX);
-        float e = (float) (2.0 - camY);
-        float f = (float) (2.0 - camZ);
-        float t = MathHelper.sqrt(1);
-
-        vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
-        vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
-
-        DrawHelper.drawLine(new Vec3d(2, 2, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        DrawHelper.drawLine(new Vec3d(2, 2, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        DrawHelper.drawLine(new Vec3d(3, 3, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        DrawHelper.drawLine(new Vec3d(3, 3, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-
-        VoxelShapes.fullCube().offset(4, 2, 2).forEachEdge((minX, minY, minZ, maxX, maxY, maxZ) -> {
-            DrawHelper.drawLine(new Vec3d(minX, minY, minZ), new Vec3d(maxX, maxY, maxZ),
-                    0xFF00FFFF, camera.getPos(), vertexConsumer, matrixStack);
-        });
-
-
-        if (paths.isPresent()) {
-            WalkPath path = paths.get();
-
-            for (int i = 0; i < path.size() - 1; ++i) {
-                BlockPos pos1 = path.get(i);
-                BlockPos pos2 = path.get(i + 1);
-                if (pos1.getY() - pos2.getY() == 0) {
-                    Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
-                    Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
-                    DrawHelper.drawLine(vec1, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                } else {
-                    Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
-                    Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
-                    Vec3d vec3 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec1.y, (vec1.getZ() + vec2.getZ()) / 2);
-                    Vec3d vec4 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec2.y, (vec1.getZ() + vec2.getZ()) / 2);
-                    DrawHelper.drawLine(vec1, vec3, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                    DrawHelper.drawLine(vec3, vec4, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                    DrawHelper.drawLine(vec4, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                }
-            }
-        }
-
-        tessellator.draw();
-
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.enableCull();
-        RenderSystem.enableTexture();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.disableBlend();
-        matrixStack1.pop();
-        RenderSystem.applyModelViewMatrix();
-
-        matrixStack.pop();
-    }
-
 
 }

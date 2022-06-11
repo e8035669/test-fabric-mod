@@ -1,11 +1,12 @@
 package net.fabricmc.example;
 
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.*;
 
 public class DrawHelper {
-    public static void drawLine(Vec3d pos1, Vec3d pos2, int color, Vec3d cameraPos, BufferBuilder vertexConsumer,
+    public static void drawLine(Vec3d pos1, Vec3d pos2, int color, Vec3d cameraPos, VertexConsumer vertexConsumer,
                          MatrixStack matrixStack) {
         MatrixStack.Entry entry = matrixStack.peek();
         Matrix4f positionMatrix = entry.getPositionMatrix();

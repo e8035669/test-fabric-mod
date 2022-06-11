@@ -169,7 +169,7 @@ public class AStarSearch {
         }
 
         // 斜角方塊
-        Triple<Integer, Integer, Integer>[] corners = new Triple<>[]{
+        Triple<Integer, Integer, Integer>[] corners = new Triple[]{
                 Triple.of(0, 1, 3),
                 Triple.of(2, 1, 5),
                 Triple.of(6, 3, 7),
