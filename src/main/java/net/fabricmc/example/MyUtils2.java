@@ -39,37 +39,14 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 public class MyUtils2 {
     public static final Logger LOGGER = LogManager.getLogger("MyUtils2");
 
+    private InformationOverlay informationOverlay = new InformationOverlay();
+
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
     private final BlockingQueue<PairedRenderableFuture<?>> runningTasks = new ArrayBlockingQueue<>(100);
     private final BlockingQueue<PairedRenderableFuture<?>> outlineEntityTasks = new ArrayBlockingQueue<>(100);
     private PlayerMotion playerMotion = null;
     private boolean isPrintInformations = false;
     private Optional<WalkPath> paths = Optional.empty();
-
-    private static void drawLine(Vec3d pos1, Vec3d pos2, int color, Vec3d cameraPos, BufferBuilder vertexConsumer,
-                                 MatrixStack matrixStack) {
-        MatrixStack.Entry entry = matrixStack.peek();
-        Matrix4f positionMatrix = entry.getPositionMatrix();
-        Matrix3f normalMatrix = entry.getNormalMatrix();
-        Vec3f diff = new Vec3f(pos2.subtract(pos1));
-        float t =
-                MathHelper.sqrt(diff.getX() * diff.getX() + diff.getY() * diff.getY() + diff.getZ() * diff.getZ());
-
-        float a = (float) (pos1.x - cameraPos.x);
-        float b = (float) (pos1.y - cameraPos.y);
-        float c = (float) (pos1.z - cameraPos.z);
-
-        vertexConsumer.vertex(positionMatrix, a, b, c).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
-                diff.getZ() / t).next();
-
-        float d = (float) (pos2.x - cameraPos.x);
-        float e = (float) (pos2.y - cameraPos.y);
-        float f = (float) (pos2.z - cameraPos.z);
-        //float t = MathHelper.sqrt(d * d + e * e + f * f);
-
-        vertexConsumer.vertex(positionMatrix, d, e, f).color(color).normal(normalMatrix, diff.getX() / t, diff.getY() / t,
-                diff.getZ() / t).next();
-    }
 
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
@@ -121,13 +98,11 @@ public class MyUtils2 {
 
             dispatcher.register(literal("mouse")
                     .then(literal("plug").executes(context -> {
-                        HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
-                        mouse.plugMouse();
+                        HotPlugMouse.plugMouse(context.getSource().getClient());
                         return 1;
                     }))
                     .then(literal("unplug").executes(context -> {
-                        HotPlugMouse mouse = HotPlugMouse.of(context.getSource().getClient().mouse);
-                        mouse.unplugMouse();
+                        HotPlugMouse.unplugMouse(context.getSource().getClient());
                         return 1;
                     }))
             );
@@ -159,7 +134,7 @@ public class MyUtils2 {
         // ClientTickEvents.END_CLIENT_TICK.register(client -> playerMotion.tick());
         executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
 
-        HudRenderCallback.EVENT.register(this::onHudRender);
+        HudRenderCallback.EVENT.register(informationOverlay);
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             if (false) {
                 onAfterEntities(context);
@@ -312,10 +287,10 @@ public class MyUtils2 {
         executor.execute(() -> {
             ClientPlayerEntity player = client.player;
             BlockPos start = player.getBlockPos();
-            Optional<BlockPos> endPos = AStarSearch2.verticalFindFloor(client.world, start.add(x, y, z), -30, 30);
+            Optional<BlockPos> endPos = AStarSearch.verticalFindFloor(client.world, start.add(x, y, z), -30, 30);
             BlockPos end = endPos.orElseGet(() -> start.add(x, y, z));
 
-            AStarSearch2 aStarSearch = new AStarSearch2(client, start, end);
+            AStarSearch aStarSearch = new AStarSearch(client, start, end);
             var result = aStarSearch.search();
 
             if (result.isPresent()) {
@@ -330,7 +305,6 @@ public class MyUtils2 {
                 //     sb.append("->");
                 // }
                 paths = Optional.of(list);
-                // player.sendMessage(new LiteralText(sb.toString()), false);
                 player.sendMessage(Text.of("Path founded"), false);
             } else {
                 paths = Optional.empty();
@@ -340,30 +314,7 @@ public class MyUtils2 {
         return 1;
     }
 
-    public void onHudRender(MatrixStack matrixStack, float tickDelta) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        var player = client.player;
-        TextRenderer textRenderer = client.textRenderer;
-        int height = client.getWindow().getScaledHeight();
-        int width = client.getWindow().getScaledWidth();
 
-        matrixStack.push();
-
-        Vec3d velocity = player.getVelocity();
-        BlockPos blockPos = player.getBlockPos();
-        String speed = String.format("Spd: %.2f, %.2f, %.2f, (%.2f, %.2f, %.2f)",
-                player.forwardSpeed, player.sidewaysSpeed, player.getMovementSpeed(),
-                velocity.x, velocity.y, velocity.z);
-        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, speed, 0, height - 40, 0x90FFFFFF);
-        String position = String.format("Pos: (%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, position, 0, height - 30, 0x90FFFFFF);
-        String blockPosStr = String.format("BPos: (%d, %d, %d)", blockPos.getX(), blockPos.getY(), blockPos.getZ());
-        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, blockPosStr, 0, height - 20, 0x90FFFFFF);
-        String dir = String.format("Dir: (%.2f, %.2f)", MathHelper.wrapDegrees(player.getYaw()), player.getPitch());
-        DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, dir, 0, height - 10, 0x90FFFFFF);
-
-        matrixStack.pop();
-    }
 
     public void onAfterEntities(WorldRenderContext context) {
         MatrixStack matrixStack = context.matrixStack();
@@ -491,13 +442,13 @@ public class MyUtils2 {
         vertexConsumer.vertex(posMatrix, a, b, c).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
         vertexConsumer.vertex(posMatrix, d, e, f).color(0xFF0000FF).normal(normMatrix, 1f, 0f, 0f).next();
 
-        drawLine(new Vec3d(2, 2, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        drawLine(new Vec3d(2, 2, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        drawLine(new Vec3d(3, 3, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
-        drawLine(new Vec3d(3, 3, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
+        DrawHelper.drawLine(new Vec3d(2, 2, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
+        DrawHelper.drawLine(new Vec3d(2, 2, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
+        DrawHelper.drawLine(new Vec3d(3, 3, 2), new Vec3d(2, 3, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
+        DrawHelper.drawLine(new Vec3d(3, 3, 2), new Vec3d(3, 2, 2), 0xFF0000FF, camera.getPos(), vertexConsumer, matrixStack);
 
         VoxelShapes.fullCube().offset(4, 2, 2).forEachEdge((minX, minY, minZ, maxX, maxY, maxZ) -> {
-            drawLine(new Vec3d(minX, minY, minZ), new Vec3d(maxX, maxY, maxZ),
+            DrawHelper.drawLine(new Vec3d(minX, minY, minZ), new Vec3d(maxX, maxY, maxZ),
                     0xFF00FFFF, camera.getPos(), vertexConsumer, matrixStack);
         });
 
@@ -511,15 +462,15 @@ public class MyUtils2 {
                 if (pos1.getY() - pos2.getY() == 0) {
                     Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
                     Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
-                    drawLine(vec1, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    DrawHelper.drawLine(vec1, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
                 } else {
                     Vec3d vec1 = Vec3d.ofBottomCenter(pos1);
                     Vec3d vec2 = Vec3d.ofBottomCenter(pos2);
                     Vec3d vec3 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec1.y, (vec1.getZ() + vec2.getZ()) / 2);
                     Vec3d vec4 = new Vec3d((vec1.getX() + vec2.getX()) / 2, vec2.y, (vec1.getZ() + vec2.getZ()) / 2);
-                    drawLine(vec1, vec3, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                    drawLine(vec3, vec4, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
-                    drawLine(vec4, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    DrawHelper.drawLine(vec1, vec3, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    DrawHelper.drawLine(vec3, vec4, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
+                    DrawHelper.drawLine(vec4, vec2, 0xA0FFFFFF, camera.getPos(), vertexConsumer, matrixStack);
                 }
             }
         }

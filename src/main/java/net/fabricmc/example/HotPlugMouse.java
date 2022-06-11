@@ -25,6 +25,16 @@ public class HotPlugMouse extends Mouse {
         return (HotPlugMouse) mouse;
     }
 
+    public static void plugMouse(MinecraftClient client) {
+        HotPlugMouse mouse = HotPlugMouse.of(client.mouse);
+        mouse.plugMouse();
+    }
+
+    public static void unplugMouse(MinecraftClient client) {
+        HotPlugMouse mouse = HotPlugMouse.of(client.mouse);
+        mouse.unplugMouse();
+    }
+
     @Override
     public void setup(long window) {
         super.setup(window);
@@ -37,10 +47,6 @@ public class HotPlugMouse extends Mouse {
         if (isPlugged) {
             super.lockCursor();
         }
-        // this.client.setScreen(null);
-        // this.client.attackCooldown = 10000;
-        // this.hasResolutionChanged = true;
-        // setResolutionChanged();
     }
 
     @Override
