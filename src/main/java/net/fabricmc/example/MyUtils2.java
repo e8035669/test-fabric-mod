@@ -52,6 +52,8 @@ public class MyUtils2 {
     private Optional<WalkPath> paths = Optional.empty();
     private Optional<WalkPathRender> walkPathRender = Optional.empty();
 
+    private InventoryManager inventoryManager = new InventoryManager();
+
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
     }
@@ -137,6 +139,7 @@ public class MyUtils2 {
         executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
         // ClientTickEvents.END_CLIENT_TICK.register(client -> playerMotion.tick());
         executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
+        executor.scheduleAtFixedRate(inventoryManager::tick, 0, 1000, TimeUnit.MILLISECONDS);
 
         HudRenderCallback.EVENT.register(informationOverlay);
         WorldRenderEvents.END.register(xrayRender);
