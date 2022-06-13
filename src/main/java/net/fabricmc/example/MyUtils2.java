@@ -54,6 +54,8 @@ public class MyUtils2 {
 
     private InventoryManager inventoryManager = new InventoryManager();
 
+    private PlayerMotionManager playerMotionManager;
+
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
     }
@@ -125,6 +127,29 @@ public class MyUtils2 {
                             .then(argument("y", IntegerArgumentType.integer())
                                     .then(argument("z", IntegerArgumentType.integer())
                                             .executes(this::executePathFind)))));
+
+            dispatcher.register(literal("manager")
+                    .then(literal("source")
+                            .executes(context -> {
+                                playerMotionManager.tagSourceBox();
+                                return 1;
+                            }))
+                    .then(literal("target")
+                            .executes(context -> {
+                                playerMotionManager.tagTargetBox();
+                                return 1;
+                            }))
+                    .then(literal("start")
+                            .executes(context -> {
+                                playerMotionManager.startTransferItems();
+                                return 1;
+                            }))
+                    .then(literal("stop")
+                            .executes(context -> {
+                                playerMotionManager.stopTransferItems();
+                                return 1;
+                            }))
+            );
         }));
 
 
@@ -154,6 +179,10 @@ public class MyUtils2 {
                 onBeforeDebugRender(context);
             }
         });
+
+        playerMotionManager = new PlayerMotionManager(
+                MinecraftClient.getInstance(), executor, xrayRender
+        );
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {

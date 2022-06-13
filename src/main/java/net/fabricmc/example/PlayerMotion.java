@@ -91,6 +91,10 @@ public class PlayerMotion {
     public void walkFollowPath(WalkPath walkPath) {
         tasks.add(new WalkFollowPathTask(client, walkPath));
     }
+
+    public boolean isTaskEmpty() {
+        return tasks.isEmpty();
+    }
 }
 
 class ActionTask implements Tickable {
@@ -209,6 +213,9 @@ class WalkFollowPathTask implements Tickable {
 
     @Override
     public boolean tick() {
+        if (walkPath.size() < 2) {
+            return false;
+        }
 
         boolean isIndexUpdate = false;
         if (Objects.equals(walkPath.get(curIdx + 1).withY(0), player.getBlockPos().withY(0))) {

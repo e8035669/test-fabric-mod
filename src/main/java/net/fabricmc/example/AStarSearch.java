@@ -8,10 +8,12 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.apache.commons.lang3.tuple.Triple;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class AStarSearch {
     private final MinecraftClient client;
@@ -33,6 +35,22 @@ public class AStarSearch {
         }
         return Optional.empty();
     }
+
+    public static List<BlockPos> findNearFloor(ClientWorld world, BlockPos centerBlock, int distance) {
+        return BlockPos.streamOutwards(centerBlock, distance, 1, distance)
+                .map(BlockPos::toImmutable)
+                .map((blockPos) -> verticalFindFloor(world, blockPos, -2, 2))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
+    }
+
+    public static Optional<BlockPos> findNearestOne(List<BlockPos> blockPos, Vec3d fromPoint) {
+        return blockPos.stream()
+                .min(Comparator.comparingDouble(b -> fromPoint.squaredDistanceTo(Vec3d.ofBottomCenter(b))));
+    }
+
+
 
     public static boolean isFloor(ClientWorld world, BlockPos blockPos) {
         boolean ret = false;
