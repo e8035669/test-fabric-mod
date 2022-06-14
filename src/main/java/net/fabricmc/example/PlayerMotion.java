@@ -10,8 +10,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 interface Tickable {
     boolean tick();
@@ -90,6 +88,10 @@ public class PlayerMotion {
 
     public void walkFollowPath(WalkPath walkPath) {
         tasks.add(new WalkFollowPathTask(client, walkPath));
+    }
+
+    public void lookDirection(Vec3d pos) {
+        tasks.add(new LookDirection(client, pos));
     }
 
     public boolean isTaskEmpty() {
@@ -194,108 +196,71 @@ class CallbackTask implements Tickable {
     }
 }
 
-class WalkFollowPathTask implements Tickable {
-    public static final Logger LOGGER = LogManager.getLogger("WalkFollowPathTask");
+class LookDirection implements Tickable {
 
-    private final MinecraftClient client;
-    private final ClientPlayerEntity player;
-    private final WalkPath walkPath;
-
-    private int curIdx;
+    private static float MAX_YAW_DELTA = 10.0f;
+    private static float MAX_PITCH_DELTA = 1.0f;
+    private enum Status {START, MOVING, END};
 
 
-    public WalkFollowPathTask(MinecraftClient client, WalkPath walkPath) {
+    private MinecraftClient client;
+    private Vec3d pos;
+    private ClientPlayerEntity player;
+
+    private float targetYaw;
+    private float targetPitch;
+
+    private float maxYawDelta;
+    private float maxPitchDelta;
+    private Status status;
+
+    public LookDirection(MinecraftClient client, Vec3d pos) {
         this.client = client;
+        this.pos = pos;
         this.player = client.player;
-        this.walkPath = walkPath;
-        this.curIdx = 0;
+        targetYaw = 0;
+        targetPitch = 0;
+        status = Status.START;
     }
 
     @Override
     public boolean tick() {
-        if (walkPath.size() < 2) {
-            return false;
+        boolean ret = true;
+        switch (status) {
+            case START -> {
+                var yaw = MoveHelper.getTargetYaw(player, pos);
+                var pitch = MoveHelper.getTargetPitch(player, pos);
+
+                if (yaw.isPresent()) {
+                    targetYaw = yaw.get();
+                }
+                if (pitch.isPresent()) {
+                    targetPitch = pitch.get();
+                }
+
+                float yawDiff = MathHelper.abs(MathHelper.subtractAngles(player.getYaw(), targetYaw));
+                float pitchDiff = MathHelper.abs(MathHelper.subtractAngles(player.getPitch(), targetPitch));
+
+                int steps = Math.max((int)Math.max(yawDiff / MAX_YAW_DELTA, pitchDiff / MAX_PITCH_DELTA), 1);
+                this.maxYawDelta = yawDiff / steps;
+                this.maxPitchDelta = pitchDiff / steps;
+                status = Status.MOVING;
+            }
+            case MOVING -> {
+                float currentPitch = player.getPitch();
+                float currentYaw = player.getYaw();
+
+                if (MathHelper.approximatelyEquals(MathHelper.angleBetween(currentPitch, targetPitch), 0.0f)
+                        && MathHelper.approximatelyEquals(MathHelper.angleBetween(currentYaw, targetYaw), 0.0f)) {
+                    status = Status.END;
+                    break;
+                }
+
+                player.setPitch(MoveHelper.changeAngle(currentPitch, targetPitch, maxPitchDelta));
+                player.setYaw(MoveHelper.changeAngle(currentYaw, targetYaw, maxYawDelta));
+            }
+            case END -> ret = false;
         }
-
-        boolean isIndexUpdate = false;
-        if (Objects.equals(walkPath.get(curIdx + 1).withY(0), player.getBlockPos().withY(0))) {
-            curIdx = curIdx + 1;
-            LOGGER.info(String.format("Update current index %d", curIdx));
-            isIndexUpdate = true;
-        }
-
-        if (curIdx == walkPath.size() - 1) {
-            // finish
-            LOGGER.info("Task finish");
-            client.options.forwardKey.setPressed(false);
-            client.options.leftKey.setPressed(false);
-            client.options.rightKey.setPressed(false);
-            client.options.jumpKey.setPressed(false);
-            return false;
-        }
-
-        if (walkPath.get(curIdx).withY(0).getManhattanDistance(player.getBlockPos().withY(0)) > 10) {
-            LOGGER.info("Not on the current path, exit.");
-            client.options.forwardKey.setPressed(false);
-            client.options.leftKey.setPressed(false);
-            client.options.rightKey.setPressed(false);
-            client.options.jumpKey.setPressed(false);
-            return false;
-        }
-
-        BlockPos currentBlock = walkPath.get(curIdx);
-        BlockPos targetBlock = walkPath.get(curIdx + 1);
-        int heightDiff = targetBlock.getY() - currentBlock.getY();
-
-        float targetPitch = 20f;
-
-        // if (heightDiff > 0) {
-        //     targetPitch = 10f;
-        // }
-        // if (heightDiff < 0) {
-        //     targetPitch = 60f;
-        // }
-
-        Optional<Float> targetYaw = MoveHelper.getTargetYaw(
-                Vec3d.ofCenter(currentBlock), Vec3d.ofCenter(targetBlock)
-        );
-
-        player.setPitch(MoveHelper.changeAngle(player.getPitch(), targetPitch, 1.0f));
-        if (targetYaw.isPresent()) {
-            player.setYaw(MoveHelper.changeAngle(player.getYaw(), targetYaw.get(), 10.0f));
-        }
-        if (MathHelper.abs(MathHelper.wrapDegrees(player.getYaw() - targetYaw.get())) < 10) {
-            client.options.forwardKey.setPressed(true);
-            client.options.sneakKey.setPressed(false);
-        } else {
-            client.options.forwardKey.setPressed(false);
-            client.options.sneakKey.setPressed(true);
-        }
-
-        boolean needJump = targetBlock.subtract(currentBlock).getY() > 0;
-
-        client.options.jumpKey.setPressed(needJump && targetBlock.getY() - player.getY() > 0.5);
-        Vec3d posOrig = player.getPos();
-        Vec3d pos1 = posOrig.rotateY(targetYaw.get() * MathHelper.RADIANS_PER_DEGREE);
-        Vec3d pos2 = Vec3d.ofBottomCenter(targetBlock).rotateY(targetYaw.get() * MathHelper.RADIANS_PER_DEGREE);
-
-        if (isIndexUpdate) {
-            LOGGER.info(String.format("Orig:%s %s and %s", posOrig, pos1, pos2));
-        }
-
-        if (pos2.getX() - pos1.getX() > 0.19) {
-            client.options.leftKey.setPressed(true);
-            client.options.rightKey.setPressed(false);
-        } else if (pos2.getX() - pos1.getX() < -0.19) {
-            client.options.rightKey.setPressed(true);
-            client.options.leftKey.setPressed(false);
-        } else {
-            client.options.rightKey.setPressed(false);
-            client.options.leftKey.setPressed(false);
-        }
-
-
-        return true;
+        return ret;
     }
 }
-

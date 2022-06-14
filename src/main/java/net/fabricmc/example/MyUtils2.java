@@ -105,15 +105,10 @@ public class MyUtils2 {
             );
 
             dispatcher.register(literal("mouse")
-                    .then(literal("plug").executes(context -> {
-                        HotPlugMouse.plugMouse(context.getSource().getClient());
-                        return 1;
-                    }))
-                    .then(literal("unplug").executes(context -> {
-                        HotPlugMouse.unplugMouse(context.getSource().getClient());
-                        return 1;
-                    }))
+                    .then(literal("plug").executes(CommandHelper.wrap(HotPlugMouse::plugMouse)))
+                    .then(literal("unplug").executes(CommandHelper.wrap(HotPlugMouse::unplugMouse)))
             );
+
             dispatcher.register(literal("autoMove")
                     .then(argument("x", IntegerArgumentType.integer())
                             .then(argument("y", IntegerArgumentType.integer())

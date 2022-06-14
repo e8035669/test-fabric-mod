@@ -72,7 +72,7 @@ public class InventoryManager {
     }
 
     public static List<Slot> selectAllItemInBox(MinecraftClient client) {
-        if (checkScreenOpened(client)) {
+        if (checkIfScreenNotOpened(client)) {
             return new ArrayList<>();
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
@@ -84,7 +84,7 @@ public class InventoryManager {
     }
 
     public static List<Slot> selectAllEmptyInBox(MinecraftClient client) {
-        if (checkScreenOpened(client)) {
+        if (checkIfScreenNotOpened(client)) {
             return new ArrayList<>();
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
@@ -96,7 +96,7 @@ public class InventoryManager {
     }
 
     public static List<Slot> selectAllEmptyInBag(MinecraftClient client) {
-        if (checkScreenOpened(client)) {
+        if (checkIfScreenNotOpened(client)) {
             return new ArrayList<>();
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
@@ -107,6 +107,17 @@ public class InventoryManager {
 
         return emptySlot;
     }
+
+    public static int getBagOffset(MinecraftClient client) {
+        if (checkIfScreenNotOpened(client)) {
+            return -1;
+        }
+        GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
+
+        int offset = handler.getRows() * 9;
+        return offset;
+    }
+
 
     public static List<Slot> filterSlots(List<Slot> slots, int from, int end, Function<Slot, Boolean> predicate) {
         List<Slot> ret = new ArrayList<>();
@@ -120,7 +131,7 @@ public class InventoryManager {
     }
 
     public static void transferSlots(MinecraftClient client, List<Slot> fromSlots, List<Slot> toSlots) {
-        if (checkScreenOpened(client)) {
+        if (checkIfScreenNotOpened(client)) {
             return;
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
@@ -136,7 +147,7 @@ public class InventoryManager {
     }
 
     public static void transferSlotIds(MinecraftClient client, List<Integer> fromSlotIds, List<Integer> toSlotIds) {
-        if (checkScreenOpened(client)) {
+        if (checkIfScreenNotOpened(client)) {
             return;
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
@@ -151,7 +162,7 @@ public class InventoryManager {
         }
     }
 
-    public static boolean checkScreenOpened(MinecraftClient client) {
-        return client.currentScreen instanceof GenericContainerScreen;
+    public static boolean checkIfScreenNotOpened(MinecraftClient client) {
+        return !(client.currentScreen instanceof GenericContainerScreen);
     }
 }
