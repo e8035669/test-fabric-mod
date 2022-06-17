@@ -155,8 +155,8 @@ public class MyUtils2 {
             outlineEntityTasks.forEach(task -> task.onRendering(context));
         });
 
-        playerMotion = new PlayerMotion(MinecraftClient.getInstance());
-        executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
+        playerMotion = new PlayerMotion(MinecraftClient.getInstance(), executor);
+        // executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
         // ClientTickEvents.END_CLIENT_TICK.register(client -> playerMotion.tick());
         executor.scheduleAtFixedRate(() -> this.isPrintInformations = true, 0, 5000, TimeUnit.MILLISECONDS);
         executor.scheduleAtFixedRate(inventoryManager::tick, 0, 1000, TimeUnit.MILLISECONDS);

@@ -143,10 +143,12 @@ public class MyTestScreen extends Screen {
         ScheduledExecutorService executor = myUtils2.getExecutor();
         PlayerMotion playerMotion = myUtils2.getPlayerMotion();
 
-        playerMotion.moveForward(100);
-        playerMotion.changeLookDirection(-5, 0, 100);
-        playerMotion.changeLookDirection(5, 0, 100);
-        playerMotion.moveForward(100);
+        LOGGER.info("Player Motion deleted");
+
+        // playerMotion.moveForward(100);
+        // playerMotion.changeLookDirection(-5, 0, 100);
+        // playerMotion.changeLookDirection(5, 0, 100);
+        // playerMotion.moveForward(100);
     }
 
     private class MouseKeyPresser {

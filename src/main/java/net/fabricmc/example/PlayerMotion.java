@@ -5,14 +5,27 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.tick.Tick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.*;
 
 interface Tickable {
     boolean tick();
+
+    default void cancel() {
+    }
+
+    boolean isCanceled();
+
+    boolean isFinished();
+
+    boolean isError();
 }
 
 interface Actionable {
@@ -27,55 +40,39 @@ public class PlayerMotion {
     public static final Logger LOGGER = LogManager.getLogger("PlayerMotion");
 
     private final MinecraftClient client;
-    private final List<Tickable> tasks;
+    private ScheduledExecutorService executor;
+    private final Queue<Tickable> tasks;
+    private Tickable currentTask;
 
-    public PlayerMotion(MinecraftClient client) {
+    private ScheduledFuture<?> scheduledFuture;
+
+    public PlayerMotion(MinecraftClient client, ScheduledExecutorService executor) {
         this.client = client;
-        this.tasks = new ArrayList<>();
-    }
-
-    public void moveForward(int duration) {
-        tasks.add(new ActionTask(duration, new Actionable() {
-            @Override
-            public void onStart() {
-                client.send(() -> client.options.forwardKey.setPressed(true));
-            }
-
-            @Override
-            public void onTick() {
-            }
-
-            @Override
-            public void onEnd() {
-                client.send(() -> client.options.forwardKey.setPressed(false));
-            }
-        }));
-    }
-
-    public void changeLookDirection(double deltaX, double deltaY, int duration) {
-        tasks.add(new ActionTask(duration, new Actionable() {
-            @Override
-            public void onStart() {
-            }
-
-            @Override
-            public void onTick() {
-                client.player.changeLookDirection(deltaX, deltaY);
-            }
-
-            @Override
-            public void onEnd() {
-            }
-        }));
+        this.executor = executor;
+        this.tasks = new ConcurrentLinkedQueue<>();
+        this.currentTask = null;
+        this.scheduledFuture = executor.scheduleAtFixedRate(this::tick, 0, 10, TimeUnit.MILLISECONDS);
     }
 
     public void tick() {
-        if (!tasks.isEmpty()) {
-            boolean ret = tasks.get(0).tick();
-            if (!ret) {
-                tasks.remove(0);
+        try {
+            if (currentTask == null) {
+                currentTask = tasks.poll();
             }
+
+            if (currentTask != null) {
+                boolean ret = currentTask.tick();
+                if (!ret) {
+                    currentTask = null;
+                }
+            }
+        } catch (Exception ex) {
+            LOGGER.catching(ex);
         }
+    }
+
+    public void addTask(Tickable tickable) {
+        tasks.add(tickable);
     }
 
     public void walkTo(Vec3d pos) {
@@ -97,30 +94,11 @@ public class PlayerMotion {
     public boolean isTaskEmpty() {
         return tasks.isEmpty();
     }
-}
 
-class ActionTask implements Tickable {
-    private final int duration;
-    private final Actionable action;
-    private int current;
-
-    public ActionTask(int duration, Actionable action) {
-        this.action = action;
-        this.duration = duration;
-        this.current = 0;
-    }
-
-    public boolean tick() {
-        if (current == 0) {
-            action.onStart();
-        }
-        action.onTick();
-        current++;
-        if (current >= duration) {
-            action.onEnd();
-            return false;
-        } else {
-            return true;
+    public void cancelAllTasks() {
+        tasks.clear();
+        if (currentTask != null) {
+            currentTask.cancel();
         }
     }
 }
@@ -132,17 +110,29 @@ class WalkToTask implements Tickable {
     private final Vec3d pos;
     private State state;
     private double lastDistance = Double.MAX_VALUE;
+
+    private boolean isCanceled;
+    private boolean isFinished;
+
+
     public WalkToTask(MinecraftClient client, Vec3d pos) {
         this.client = client;
         this.player = client.player;
         this.pos = pos;
         this.state = State.LOOK;
+        this.isCanceled = false;
+        this.isFinished = false;
     }
 
     @Override
     public boolean tick() {
 
         boolean ret = true;
+
+        if (isCanceled) {
+            client.options.forwardKey.setPressed(false);
+            state = State.STOPPING;
+        }
 
         var yaw = MoveHelper.getTargetYaw(player, pos);
         var pitch = MoveHelper.getTargetPitch(player, pos);
@@ -172,6 +162,7 @@ class WalkToTask implements Tickable {
 
         if (state == State.STOPPING) {
             if (MathHelper.approximatelyEquals(player.getVelocity().horizontalLengthSquared(), 0)) {
+                isFinished = true;
                 ret = false;
             }
         }
@@ -179,11 +170,33 @@ class WalkToTask implements Tickable {
         return ret;
     }
 
+    @Override
+    public void cancel() {
+        Tickable.super.cancel();
+        isCanceled = true;
+    }
+
+    @Override
+    public boolean isCanceled() {
+        return isCanceled;
+    }
+
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
+
+    @Override
+    public boolean isError() {
+        return false;
+    }
+
     private enum State {LOOK, MOVE, STOPPING}
 }
 
 class CallbackTask implements Tickable {
     private final Runnable runnable;
+    private boolean isFinished = false;
 
     public CallbackTask(Runnable runnable) {
         this.runnable = runnable;
@@ -192,6 +205,22 @@ class CallbackTask implements Tickable {
     @Override
     public boolean tick() {
         runnable.run();
+        isFinished = true;
+        return false;
+    }
+
+    @Override
+    public boolean isCanceled() {
+        return false;
+    }
+
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
+
+    @Override
+    public boolean isError() {
         return false;
     }
 }
@@ -213,6 +242,8 @@ class LookDirection implements Tickable {
     private float maxYawDelta;
     private float maxPitchDelta;
     private Status status;
+    private boolean isCanceled;
+    private boolean isFinished;
 
     public LookDirection(MinecraftClient client, Vec3d pos) {
         this.client = client;
@@ -221,11 +252,15 @@ class LookDirection implements Tickable {
         targetYaw = 0;
         targetPitch = 0;
         status = Status.START;
+        this.isCanceled = false;
     }
 
     @Override
     public boolean tick() {
         boolean ret = true;
+        if (isCanceled) {
+            status = Status.END;
+        }
         switch (status) {
             case START -> {
                 var yaw = MoveHelper.getTargetYaw(player, pos);
@@ -259,8 +294,32 @@ class LookDirection implements Tickable {
                 player.setPitch(MoveHelper.changeAngle(currentPitch, targetPitch, maxPitchDelta));
                 player.setYaw(MoveHelper.changeAngle(currentYaw, targetYaw, maxYawDelta));
             }
-            case END -> ret = false;
+            case END -> {
+                isFinished = true;
+                ret = false;
+            }
         }
         return ret;
+    }
+
+    @Override
+    public void cancel() {
+        Tickable.super.cancel();
+        isCanceled = true;
+    }
+
+    @Override
+    public boolean isCanceled() {
+        return isCanceled;
+    }
+
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
+
+    @Override
+    public boolean isError() {
+        return false;
     }
 }

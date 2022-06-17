@@ -16,15 +16,12 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class PlayerMotionManager {
     public static final Logger LOGGER = LogManager.getLogger("PlayerMotionManager");
-
 
     private MinecraftClient client;
     private ScheduledExecutorService executor;
@@ -44,13 +41,12 @@ public class PlayerMotionManager {
         this.client = client;
         this.executor = executor;
         this.xrayRender = xrayRender;
-        playerMotion = new PlayerMotion(client);
+        playerMotion = new PlayerMotion(client, executor);
         sourceBoxPos = Optional.empty();
         sourceBoxRender = Optional.empty();
         targetBoxPos = Optional.empty();
         targetBoxRender = Optional.empty();
 
-        executor.scheduleAtFixedRate(() -> playerMotion.tick(), 0, 10, TimeUnit.MILLISECONDS);
         transferItemTask = new TransferItemTask(client, executor, xrayRender, playerMotion);
     }
 
@@ -115,7 +111,7 @@ public class PlayerMotionManager {
     }
 
 
-    class TransferItemTask {
+    static class TransferItemTask {
         public static final Logger LOGGER = LogManager.getLogger("TransferItemTask");
 
         private MinecraftClient client;
@@ -130,6 +126,9 @@ public class PlayerMotionManager {
         private ScheduledFuture<?> future;
         private Optional<WalkPathRender> walkPathRender;
 
+        private boolean isNeedStop;
+
+
 
 
         public TransferItemTask(MinecraftClient client, ScheduledExecutorService executor, XrayRender xrayRender,
@@ -139,6 +138,7 @@ public class PlayerMotionManager {
             this.xrayRender = xrayRender;
             this.playerMotion = playerMotion;
             walkPathRender = Optional.empty();
+            this.isNeedStop = false;
         }
 
         public void setSourceBlockPos(BlockPos blockPos) {
@@ -150,64 +150,75 @@ public class PlayerMotionManager {
         }
 
         public void startTransferItem() {
-            future = executor.schedule(this::doTransferItem, 1000, TimeUnit.MILLISECONDS);
+            if (future == null || future.isDone()) {
+                future = executor.schedule(this::doTransferItem, 1000, TimeUnit.MILLISECONDS);
+            }
         }
 
         public void stopTransferItem() {
-            future.cancel(false);
+            future.cancel(true);
         }
 
         public void doTransferItem() {
             HotPlugMouse.unplugMouse(client);
             try {
-                moveToNearBlock(sourceBlockPos);
+                while (!future.isCancelled()) {
+                    moveToNearBlock(sourceBlockPos);
+                    client.execute(() -> client.currentScreen.close());
+                    Thread.sleep(100);
 
-                client.options.useKey.setPressed(true);
-                Thread.sleep(100);
-                client.options.useKey.setPressed(false);
-                Thread.sleep(100);
+                    client.options.useKey.setPressed(true);
+                    Thread.sleep(100);
+                    client.options.useKey.setPressed(false);
+                    Thread.sleep(100);
 
-                if (!(client.currentScreen instanceof GenericContainerScreen)) {
-                    throw new RuntimeException("Screen not open");
+                    if (!(client.currentScreen instanceof GenericContainerScreen)) {
+                        throw new RuntimeException("Screen not open");
+                    }
+
+                    int bagOffset = InventoryManager.getBagOffset(client);
+                    List<Slot> itemsInBox = InventoryManager.selectAllItemInBox(client);
+                    List<Slot> bagSlots = InventoryManager.selectAllEmptyInBag(client);
+                    LOGGER.info(itemsInBox);
+
+                    InventoryManager.transferSlots(client, itemsInBox, bagSlots);
+                    Thread.sleep(500);
+
+                    client.execute(() -> client.currentScreen.close());
+
+                    moveToNearBlock(targetBlockPos);
+                    client.execute(() -> client.currentScreen.close());
+                    Thread.sleep(100);
+
+                    client.options.useKey.setPressed(true);
+                    Thread.sleep(100);
+                    client.options.useKey.setPressed(false);
+                    Thread.sleep(100);
+
+                    if (!(client.currentScreen instanceof GenericContainerScreen)) {
+                        throw new RuntimeException("Screen not open");
+                    }
+
+                    int bagOffset2 = InventoryManager.getBagOffset(client);
+                    List<Integer> bagSlotIds = bagSlots.stream().map(s -> s.id + (bagOffset2 - bagOffset)).toList();
+                    List<Integer> boxEmptySlot = InventoryManager.selectAllEmptyInBox(client).stream().map(s -> s.id).toList();
+
+                    InventoryManager.transferSlotIds(client, bagSlotIds, boxEmptySlot);
+                    Thread.sleep(500);
+
+                    client.execute(() -> client.currentScreen.close());
                 }
-
-                int bagOffset = InventoryManager.getBagOffset(client);
-                List<Slot> itemsInBox = InventoryManager.selectAllItemInBox(client);
-                List<Slot> bagSlots = InventoryManager.selectAllEmptyInBag(client);
-                LOGGER.info(itemsInBox);
-
-                InventoryManager.transferSlots(client, itemsInBox, bagSlots);
-                Thread.sleep(500);
-
-                client.execute(() -> client.currentScreen.close());
-
-                moveToNearBlock(targetBlockPos);
-
-                client.options.useKey.setPressed(true);
-                Thread.sleep(100);
-                client.options.useKey.setPressed(false);
-                Thread.sleep(100);
-
-                if (!(client.currentScreen instanceof GenericContainerScreen)) {
-                    throw new RuntimeException("Screen not open");
-                }
-
-                int bagOffset2 = InventoryManager.getBagOffset(client);
-                List<Integer> bagSlotIds = bagSlots.stream().map(s -> s.id + (bagOffset2 - bagOffset)).toList();
-                List<Integer> boxEmptySlot = InventoryManager.selectAllEmptyInBox(client).stream().map(s -> s.id).toList();
-
-                InventoryManager.transferSlotIds(client, bagSlotIds, boxEmptySlot);
-                Thread.sleep(500);
-
-                client.execute(() -> client.currentScreen.close());
 
             } catch (Exception ex) {
                 LOGGER.info(ex);
                 LOGGER.catching(ex);
+            } finally {
+                walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
+                playerMotion.cancelAllTasks();
+                client.options.useKey.setPressed(false);
+                HotPlugMouse.plugMouse(client);
+                LOGGER.info("Transfer task Finish");
             }
-
-            HotPlugMouse.plugMouse(client);
-            LOGGER.info("Transfer task Finish");
         }
 
         private void moveToNearBlock(BlockPos sourceBlockPos) throws InterruptedException {
@@ -217,14 +228,19 @@ public class PlayerMotionManager {
                 AStarSearch aStarSearch = new AStarSearch(client, client.player.getBlockPos(), nearestBlock.get());
                 Optional<WalkPath> walkPath = aStarSearch.search();
                 if (walkPath.isPresent()) {
-                    playerMotion.walkFollowPath(walkPath.get());
+
+                    WalkFollowPathTask walkFollowPathTask = new WalkFollowPathTask(client, walkPath.get());
+                    playerMotion.addTask(walkFollowPathTask);
+
                     walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
                     walkPathRender = Optional.of(new WalkPathRender(walkPath.get(), 0xA0FFFFFF));
                     xrayRender.getRenderables().add(walkPathRender.get());
+                    LOGGER.info("Wait for WalkFollowPathTask to finish.");
+                    while (!walkFollowPathTask.isFinished()) {
+                        Thread.sleep(10);
+                    }
+                    LOGGER.info("Wait for WalkFollowPathTask is finished.");
                 }
-            }
-            while (!playerMotion.isTaskEmpty()) {
-                Thread.sleep(10);
             }
 
             playerMotion.lookDirection(Vec3d.ofCenter(sourceBlockPos));
@@ -233,7 +249,5 @@ public class PlayerMotionManager {
                 Thread.sleep(10);
             }
         }
-
-
     }
 }

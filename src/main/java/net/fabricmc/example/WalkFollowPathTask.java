@@ -20,43 +20,50 @@ public class WalkFollowPathTask implements Tickable {
 
     private int curIdx;
 
+    private boolean isCanceled;
+
+    private boolean isFinished;
+
+    private boolean isError;
+
 
     public WalkFollowPathTask(MinecraftClient client, WalkPath walkPath) {
         this.client = client;
         this.player = client.player;
         this.walkPath = walkPath;
         this.curIdx = 0;
+        this.isCanceled = false;
+        this.isFinished = false;
+        this.isError = false;
     }
 
     @Override
     public boolean tick() {
-        if (walkPath.size() < 2) {
+        if (walkPath.size() < 2 || isCanceled) {
+            LOGGER.info("Task canceled or no path there.");
+            releaseAllKeysAndNotify();
             return false;
         }
 
         boolean isIndexUpdate = false;
-        if (Objects.equals(walkPath.get(curIdx + 1).withY(0), player.getBlockPos().withY(0))) {
+        if (walkPath.size() > curIdx + 1 &&
+                Objects.equals(walkPath.get(curIdx + 1).withY(0), player.getBlockPos().withY(0))) {
             curIdx = curIdx + 1;
-            LOGGER.info(String.format("Update current index %d", curIdx));
+            // LOGGER.info(String.format("Update current index %d", curIdx));
             isIndexUpdate = true;
         }
 
         if (curIdx == walkPath.size() - 1) {
             // finish
             LOGGER.info("Task finish");
-            client.options.forwardKey.setPressed(false);
-            client.options.leftKey.setPressed(false);
-            client.options.rightKey.setPressed(false);
-            client.options.jumpKey.setPressed(false);
+            releaseAllKeysAndNotify();
             return false;
         }
 
         if (walkPath.get(curIdx).withY(0).getManhattanDistance(player.getBlockPos().withY(0)) > 10) {
             LOGGER.info("Not on the current path, exit.");
-            client.options.forwardKey.setPressed(false);
-            client.options.leftKey.setPressed(false);
-            client.options.rightKey.setPressed(false);
-            client.options.jumpKey.setPressed(false);
+            isError = true;
+            releaseAllKeysAndNotify();
             return false;
         }
 
@@ -111,7 +118,35 @@ public class WalkFollowPathTask implements Tickable {
             client.options.leftKey.setPressed(false);
         }
 
-
         return true;
+    }
+
+    private void releaseAllKeysAndNotify() {
+        client.options.forwardKey.setPressed(false);
+        client.options.leftKey.setPressed(false);
+        client.options.rightKey.setPressed(false);
+        client.options.jumpKey.setPressed(false);
+        isFinished = true;
+    }
+
+    @Override
+    public void cancel() {
+        Tickable.super.cancel();
+        this.isCanceled = true;
+    }
+
+    @Override
+    public boolean isCanceled() {
+        return isCanceled;
+    }
+
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
+
+    @Override
+    public boolean isError() {
+        return isError;
     }
 }
