@@ -39,7 +39,7 @@ public class AStarSearch {
     public static List<BlockPos> findNearFloor(ClientWorld world, BlockPos centerBlock, int distance) {
         return BlockPos.streamOutwards(centerBlock, distance, 1, distance)
                 .map(BlockPos::toImmutable)
-                .map((blockPos) -> verticalFindFloor(world, blockPos, -2, 2))
+                .map((blockPos) -> verticalFindFloor(world, blockPos, -1, 2))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(Collectors.toList());

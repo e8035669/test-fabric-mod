@@ -6,7 +6,9 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -165,12 +167,12 @@ public class PlayerMotionManager {
                 while (!future.isCancelled()) {
                     moveToNearBlock(sourceBlockPos);
                     client.execute(() -> client.currentScreen.close());
-                    Thread.sleep(100);
+                    Thread.sleep(500);
 
                     client.options.useKey.setPressed(true);
                     Thread.sleep(100);
                     client.options.useKey.setPressed(false);
-                    Thread.sleep(100);
+                    Thread.sleep(500);
 
                     if (!(client.currentScreen instanceof GenericContainerScreen)) {
                         throw new RuntimeException("Screen not open");
@@ -181,19 +183,26 @@ public class PlayerMotionManager {
                     List<Slot> bagSlots = InventoryManager.selectAllEmptyInBag(client);
                     LOGGER.info(itemsInBox);
 
-                    InventoryManager.transferSlots(client, itemsInBox, bagSlots);
-                    Thread.sleep(500);
+                    if (!itemsInBox.isEmpty()) {
+                        InventoryManager.transferSlots(client, itemsInBox, bagSlots);
+                        Thread.sleep(500);
+                    } else {
+                        Thread.sleep(100);
+                        client.execute(() -> client.currentScreen.close());
+                        client.player.sendMessage(Text.literal("Nothing in the box."));
+                        break;
+                    }
 
                     client.execute(() -> client.currentScreen.close());
 
                     moveToNearBlock(targetBlockPos);
                     client.execute(() -> client.currentScreen.close());
-                    Thread.sleep(100);
+                    Thread.sleep(500);
 
                     client.options.useKey.setPressed(true);
                     Thread.sleep(100);
                     client.options.useKey.setPressed(false);
-                    Thread.sleep(100);
+                    Thread.sleep(500);
 
                     if (!(client.currentScreen instanceof GenericContainerScreen)) {
                         throw new RuntimeException("Screen not open");
@@ -212,12 +221,16 @@ public class PlayerMotionManager {
             } catch (Exception ex) {
                 LOGGER.info(ex);
                 LOGGER.catching(ex);
+                Text text =
+                        Text.literal(ex.getMessage()).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF0000)));
+                client.player.sendMessage(text);
             } finally {
                 walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
                 playerMotion.cancelAllTasks();
                 client.options.useKey.setPressed(false);
                 HotPlugMouse.plugMouse(client);
                 LOGGER.info("Transfer task Finish");
+                client.player.sendMessage(Text.literal("Transfer task finish"));
             }
         }
 
