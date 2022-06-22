@@ -14,7 +14,8 @@
     "BiomeAccessMixin",
     "KeyBindingMixin",
     "MouseMixin",
-    "ClientPlayerInteractionManagerMixin"
+    "ClientPlayerInteractionManagerMixin",
+    "FishingBobberEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

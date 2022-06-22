@@ -21,7 +21,9 @@ import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.BlockStateArgument;
 import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.command.argument.EnumArgumentType;
 import net.minecraft.entity.Entity;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.*;
 import net.minecraft.util.shape.VoxelShapes;
@@ -145,6 +147,14 @@ public class MyUtils2 {
                                 return 1;
                             }))
             );
+            dispatcher.register(literal("overlay")
+                    .then(argument("type", new ShowModeArgumentType())
+                            .executes(context -> {
+                                InformationOverlay.ShowMode showMode = context.getArgument("type",
+                                        InformationOverlay.ShowMode.class);
+                                informationOverlay.setShowMode(showMode);
+                                return 1;
+                            })));
         }));
 
 
