@@ -12,8 +12,17 @@ public class FishingBobberEntityMixin implements Fishable {
     @Shadow
     private boolean caughtFish;
 
+    @Shadow
+    private FishingBobberEntity.State state;
+
     @Override
     public boolean isCaughtFish() {
         return caughtFish;
     }
+
+    @Override
+    public FishingBobberEntity.State getState() {
+        return state;
+    }
+
 }
