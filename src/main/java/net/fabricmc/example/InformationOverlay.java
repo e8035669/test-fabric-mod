@@ -94,9 +94,6 @@ public class InformationOverlay implements HudRenderCallback {
             if (fishHook.getHookedEntity() != null) {
                 fishHookMsg += String.format("hook %s", fishHook.getHookedEntity().getName().getString());
             }
-            if (fishHook.isInOpenWater()) {
-                fishHookMsg += "open water, ";
-            }
             DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, fishHookMsg, 0, height - 30, TEXT_COLOR);
         }
 

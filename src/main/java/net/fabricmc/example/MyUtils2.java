@@ -23,6 +23,7 @@ import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.EnumArgumentType;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.*;
@@ -57,6 +58,8 @@ public class MyUtils2 {
     private InventoryManager inventoryManager = new InventoryManager();
 
     private PlayerMotionManager playerMotionManager;
+
+    private ProjectionUtils projectionUtils;
 
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
@@ -155,6 +158,7 @@ public class MyUtils2 {
                                 informationOverlay.setShowMode(showMode);
                                 return 1;
                             })));
+            dispatcher.register(literal("project").executes(projectionUtils::executeProject));
         }));
 
 
@@ -188,6 +192,7 @@ public class MyUtils2 {
         playerMotionManager = new PlayerMotionManager(
                 MinecraftClient.getInstance(), executor, xrayRender
         );
+        projectionUtils = new ProjectionUtils(xrayRender);
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {

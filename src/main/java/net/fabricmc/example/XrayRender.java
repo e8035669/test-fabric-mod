@@ -69,4 +69,19 @@ public class XrayRender implements WorldRenderEvents.End {
 
         matrixStack.pop();
     }
+
+    public void add(XrayRenderable renderable) {
+        if (renderable != null && !renderables.contains(renderable)) {
+            renderables.add(renderable);
+        }
+    }
+
+    public void remove(XrayRenderable renderable) {
+        if (renderable != null) {
+            renderables.remove(renderable);
+        }
+    }
+
+
+
 }
