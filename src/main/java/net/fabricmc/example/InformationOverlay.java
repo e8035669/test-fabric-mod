@@ -1,21 +1,27 @@
 package net.fabricmc.example;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.projectile.FishingBobberEntity;
+import net.minecraft.item.Items;
+import net.minecraft.text.Text;
 import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.StringIdentifiable;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.*;
 
 import java.util.EnumSet;
 
 public class InformationOverlay implements HudRenderCallback {
 
+    private static final Identifier MY_TEXTURE = new Identifier("tutorial", "textures/information/circle.png");
     private static int TEXT_COLOR = 0x90FFFFFF;
     private EnumSet<DisplayMode> displayModes;
     private ShowMode showMode;
@@ -41,6 +47,7 @@ public class InformationOverlay implements HudRenderCallback {
         if (displayModes.contains(DisplayMode.FISH)) {
             drawFishingInfo(matrixStack, tickDelta);
         }
+        drawEntityPositions(matrixStack, tickDelta);
     }
 
     public void drawMotionInfo(MatrixStack matrixStack, float tickDelta) {
@@ -103,6 +110,62 @@ public class InformationOverlay implements HudRenderCallback {
 
         matrixStack.pop();
     }
+
+    public void drawEntityPositions(MatrixStack matrixStack, float tickDelta) {
+        matrixStack.push();
+
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (client.crosshairTarget.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult hitResult = (BlockHitResult) client.crosshairTarget;
+            BlockPos blockPos = hitResult.getBlockPos();
+
+            // client.player.sendMessage(Text.literal("%s".formatted(blockPos)));
+
+            int width = client.getWindow().getScaledWidth();
+            int height = client.getWindow().getScaledHeight();
+            float aspect = (float) width / height;
+            double fov = client.options.getFov().getValue();
+            double angleSize = fov / height;
+
+            Camera camera = client.gameRenderer.getCamera();
+
+            Quaternion cameraDirection = camera.getRotation();
+            cameraDirection.conjugate();
+            Vec3d cameraPos = camera.getPos();
+
+            Vec3f result = new Vec3f(cameraPos.subtract(Vec3d.ofCenter(blockPos, 1.0f)));
+            result.transform(new Matrix3f(cameraDirection));
+
+            float half_height = height / 2.0f;
+            float scale_factor =
+                    (float) (half_height / (result.getZ() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2)));
+
+            result.multiplyComponentwise(-scale_factor, -scale_factor, 1);
+
+            // DrawableHelper.drawCenteredText(matrixStack, client.textRenderer, "X", (int) (result.getX() + width /
+            // 2f),
+            //         (int) (result.getY() + height / 2f), 0xFFFFFFFF);
+
+            RenderSystem.setShaderTexture(0, MY_TEXTURE);
+            DrawableHelper.drawTexture(matrixStack, (int) (result.getX() + width / 2f - 8),
+                    (int) (result.getY() + height / 2f - 8), 0f, 0f, 16, 16, 16, 16);
+
+
+
+            // client.player.sendMessage(Text.literal("%s %f %f".formatted(cameraDirection, fov, angleSize)));
+            // client.player.sendMessage(Text.literal("%d, %d, %f".formatted(width, height, aspect)));
+            // client.player.sendMessage(Text.literal("%s".formatted(result)));
+
+        }
+
+        matrixStack.pop();
+    }
+
+    public void showEntityPosition(MinecraftClient client) {
+
+    }
+
 
 
     public enum ShowMode implements StringIdentifiable {

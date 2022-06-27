@@ -3,15 +3,11 @@ package net.fabricmc.example;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.render.Camera;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
-import net.minecraft.util.shape.VoxelShapes;
-
-import java.util.Optional;
 
 public class ProjectionUtils {
 
@@ -41,31 +37,32 @@ public class ProjectionUtils {
             renderable = new CuboidRender(blockPos, 0xFFFF0000);
             xrayRender.add(renderable);
 
-
             client.player.sendMessage(Text.literal("%s".formatted(blockPos)));
 
             int width = client.getWindow().getFramebufferWidth();
             int height = client.getWindow().getFramebufferHeight();
             float aspect = (float) width / height;
-
-            Quaternion cameraDirection = client.gameRenderer.getCamera().getRotation();
             double fov = client.options.getFov().getValue();
             double angleSize = fov / height;
 
-            Matrix4f matrix4f = Matrix4f.viewboxMatrix(fov, aspect, 0.05f,
-                    client.options.getViewDistance().getValue() * 4.0f);
+            Camera camera = client.gameRenderer.getCamera();
 
-            Vector4f centerPoint =
-                    new Vector4f(new Vec3f(Vec3d.ofCenter(blockPos).subtract(client.cameraEntity.getPos())));
-            //centerPoint = centerPoint(cameraDirection);
-            centerPoint.rotate(cameraDirection);
+            Quaternion cameraDirection = camera.getRotation();
+            cameraDirection.conjugate();
+            Vec3d cameraPos = camera.getPos();
 
+            Vec3f result = new Vec3f(cameraPos.subtract(Vec3d.ofCenter(blockPos)));
+            result.transform(new Matrix3f(cameraDirection));
 
+            float half_height = height / 2.0f;
+            float scale_factor =
+                    (float) (half_height / result.getZ() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2));
+
+            result.multiplyComponentwise(-scale_factor, scale_factor, 1);
 
             client.player.sendMessage(Text.literal("%s %f %f".formatted(cameraDirection, fov, angleSize)));
             client.player.sendMessage(Text.literal("%d, %d, %f".formatted(width, height, aspect)));
-            client.player.sendMessage(Text.literal("%s".formatted(matrix4f)));
-            client.player.sendMessage(Text.literal("%s".formatted(centerPoint)));
+            client.player.sendMessage(Text.literal("%s".formatted(result)));
 
         }
     }
