@@ -15,7 +15,8 @@
     "KeyBindingMixin",
     "MouseMixin",
     "ClientPlayerInteractionManagerMixin",
-    "FishingBobberEntityMixin"
+    "FishingBobberEntityMixin",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
