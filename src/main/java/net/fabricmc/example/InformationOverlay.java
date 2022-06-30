@@ -24,18 +24,6 @@ import java.util.*;
 
 public class InformationOverlay implements HudRenderCallback {
 
-    private static final Identifier MY_TEXTURE = new Identifier("tutorial", "textures/information/circle.png");
-
-    private static final Identifier COW_TEXTURE = new Identifier("tutorial", "textures/information/cow.png");
-    private static final Identifier VILLAGER_TEXTURE = new Identifier("tutorial", "textures/information/villager.png");
-    private static final Identifier PIG_TEXTURE = new Identifier("tutorial", "textures/information/pig.png");
-
-    private static final Map<Class<?>, Identifier> SUPPORT_ENTITIES = ImmutableMap.of(
-            CowEntity.class, COW_TEXTURE,
-            VillagerEntity.class, VILLAGER_TEXTURE,
-            PigEntity.class, PIG_TEXTURE
-    );
-
     private static int TEXT_COLOR = 0x90FFFFFF;
     private EnumSet<DisplayMode> displayModes;
     private ShowMode showMode;
@@ -60,10 +48,6 @@ public class InformationOverlay implements HudRenderCallback {
         }
         if (displayModes.contains(DisplayMode.FISH)) {
             drawFishingInfo(matrixStack, tickDelta);
-        }
-        // drawEntityPositions(matrixStack, tickDelta);
-        if (true) {
-            drawEntityPositions2(matrixStack, tickDelta);
         }
     }
 
@@ -126,143 +110,6 @@ public class InformationOverlay implements HudRenderCallback {
         DrawableHelper.drawStringWithShadow(matrixStack, textRenderer, time, 0, height - 20, TEXT_COLOR);
 
         matrixStack.pop();
-    }
-
-    public void drawEntityPositions(MatrixStack matrixStack, float tickDelta) {
-        matrixStack.push();
-
-        MinecraftClient client = MinecraftClient.getInstance();
-
-        if (client.crosshairTarget.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult hitResult = (BlockHitResult) client.crosshairTarget;
-            BlockPos blockPos = hitResult.getBlockPos();
-
-            // client.player.sendMessage(Text.literal("%s".formatted(blockPos)));
-
-            int width = client.getWindow().getScaledWidth();
-            int height = client.getWindow().getScaledHeight();
-            float aspect = (float) width / height;
-            double fov = client.options.getFov().getValue();
-            double angleSize = fov / height;
-
-            Camera camera = client.gameRenderer.getCamera();
-
-            Quaternion cameraDirection = camera.getRotation();
-            cameraDirection.conjugate();
-            Vec3d cameraPos = camera.getPos();
-
-            Vec3f result = new Vec3f(cameraPos.subtract(Vec3d.ofCenter(blockPos, 1.0f)));
-            result.transform(new Matrix3f(cameraDirection));
-
-            float half_height = height / 2.0f;
-            float scale_factor =
-                    (float) (half_height / (result.getZ() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2)));
-
-            result.multiplyComponentwise(-scale_factor, -scale_factor, 1);
-
-            // DrawableHelper.drawCenteredText(matrixStack, client.textRenderer, "X", (int) (result.getX() + width /
-            // 2f),
-            //         (int) (result.getY() + height / 2f), 0xFFFFFFFF);
-
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-            RenderSystem.setShader(GameRenderer::getPositionTexShader);
-            RenderSystem.setShaderTexture(0, MY_TEXTURE);
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            DrawableHelper.drawTexture(matrixStack, (int) (result.getX() + width / 2f - 7),
-                    (int) (result.getY() + height / 2f - 7), 0f, 0f, 15, 15, 15, 15);
-            RenderSystem.disableBlend();
-
-
-            // client.player.sendMessage(Text.literal("%s %f %f".formatted(cameraDirection, fov, angleSize)));
-            // client.player.sendMessage(Text.literal("%d, %d, %f".formatted(width, height, aspect)));
-            // client.player.sendMessage(Text.literal("%s".formatted(result)));
-
-        }
-
-        matrixStack.pop();
-    }
-
-    public void drawEntityPositions2(MatrixStack matrixStack, float tickDelta) {
-        matrixStack.push();
-
-        MinecraftClient client = MinecraftClient.getInstance();
-
-        int width = client.getWindow().getScaledWidth();
-        int height = client.getWindow().getScaledHeight();
-        int halfWidth = width / 2;
-        int halfHeight = height / 2;
-        double fov = GameRendererInterface.of(client.gameRenderer).getFov(tickDelta);
-
-        Camera camera = client.gameRenderer.getCamera();
-
-        Quaternion cameraDirection1 = camera.getRotation();
-        cameraDirection1.conjugate();
-        Matrix3f cameraDirection = new Matrix3f(cameraDirection1);
-        Vec3d cameraPos = camera.getPos();
-
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 0.8f);
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-
-        int textureSize = 16;
-        int border = textureSize / 2;
-
-        for (Entity entity: client.world.getEntities()) {
-            Identifier entityImage = SUPPORT_ENTITIES.get(entity.getClass());
-            if (entity.getSyncedPos().distanceTo(cameraPos) < 60 && Objects.nonNull(entityImage)) {
-                RenderSystem.setShaderTexture(0, entityImage);
-                PositionResult positionResult = projectToScreen(entity.getEyePos().add(0, 0.5, 0), cameraPos,
-                        cameraDirection, height, fov);
-                if (positionResult.front) {
-                    int drawX = MathHelper.clamp((int) (positionResult.x + halfWidth - border), 0, width - textureSize);
-                    int drawY = MathHelper.clamp((int) (positionResult.y + halfHeight - border), 0, height - textureSize);
-
-                    DrawableHelper.drawTexture(matrixStack, drawX, drawY,
-                            0f, 0f, textureSize, textureSize, textureSize, textureSize);
-                } else {
-                    double drawX = -positionResult.x;
-                    double drawY = -positionResult.y;
-
-                    double minDistance = Math.max(
-                            Math.min(halfWidth - border - Math.abs(drawX), halfHeight - border - Math.abs(drawY)
-                            ), 0);
-                    if (drawX > 0) {
-                        drawX = Math.min(drawX + minDistance, halfWidth - border);
-                    } else {
-                        drawX = Math.max(drawX - minDistance, -(halfWidth - border));
-                    }
-
-                    if (drawY > 0) {
-                        drawY = Math.min(drawY + minDistance, halfHeight - border);
-                    } else {
-                        drawY = Math.max(drawY - minDistance, -(halfHeight - border));
-                    }
-                    drawX += (halfWidth - border);
-                    drawY += (halfHeight - border);
-                    DrawableHelper.drawTexture(matrixStack, (int)drawX, (int)drawY,
-                            0f, 0f, textureSize, textureSize, textureSize, textureSize);
-                }
-            }
-        }
-        RenderSystem.disableBlend();
-
-        matrixStack.pop();
-    }
-
-    private record PositionResult(float x, float y, boolean front) {}
-
-    private static PositionResult projectToScreen(Vec3d pos, Vec3d cameraPos, Matrix3f cameraDirection, int height, double fov) {
-        Vec3f result = new Vec3f(cameraPos.subtract(pos));
-        result.transform(cameraDirection);
-
-        float half_height = height / 2.0f;
-        float scale_factor =
-                (float) (half_height / (result.getZ() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2)));
-
-        result.multiplyComponentwise(-scale_factor, -scale_factor, 1);
-        return new PositionResult(result.getX(), result.getY(), result.getZ() < 0);
     }
 
     public enum ShowMode implements StringIdentifiable {

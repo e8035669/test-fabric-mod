@@ -61,6 +61,8 @@ public class MyUtils2 {
 
     private ProjectionUtils projectionUtils;
 
+    private EntityIndicateOverlay entityIndicateOverlay = new EntityIndicateOverlay();
+
     public PlayerMotion getPlayerMotion() {
         return playerMotion;
     }
@@ -193,6 +195,8 @@ public class MyUtils2 {
                 MinecraftClient.getInstance(), executor, xrayRender
         );
         projectionUtils = new ProjectionUtils(xrayRender);
+
+        HudRenderCallback.EVENT.register(entityIndicateOverlay);
     }
 
     private int executeDetectBlock(CommandContext<FabricClientCommandSource> context) {
