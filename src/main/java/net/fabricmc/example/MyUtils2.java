@@ -130,28 +130,7 @@ public class MyUtils2 {
                                     .then(argument("z", IntegerArgumentType.integer())
                                             .executes(this::executePathFind)))));
 
-            dispatcher.register(literal("manager")
-                    .then(literal("source")
-                            .executes(context -> {
-                                playerMotionManager.tagSourceBox();
-                                return 1;
-                            }))
-                    .then(literal("target")
-                            .executes(context -> {
-                                playerMotionManager.tagTargetBox();
-                                return 1;
-                            }))
-                    .then(literal("start")
-                            .executes(context -> {
-                                playerMotionManager.startTransferItems();
-                                return 1;
-                            }))
-                    .then(literal("stop")
-                            .executes(context -> {
-                                playerMotionManager.stopTransferItems();
-                                return 1;
-                            }))
-            );
+            dispatcher.register(playerMotionManager.registerCommand(literal("manager")));
             dispatcher.register(literal("overlay")
                     .then(argument("type", new ShowModeArgumentType())
                             .executes(context -> {
@@ -161,6 +140,7 @@ public class MyUtils2 {
                                 return 1;
                             })));
             dispatcher.register(literal("project").executes(projectionUtils::executeProject));
+            dispatcher.register(entityIndicateOverlay.registerCommand(literal("indicator")));
         }));
 
 

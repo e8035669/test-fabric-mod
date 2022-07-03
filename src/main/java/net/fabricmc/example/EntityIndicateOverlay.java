@@ -2,6 +2,9 @@ package net.fabricmc.example;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawableHelper;
@@ -18,6 +21,9 @@ import net.minecraft.util.math.*;
 import java.util.Map;
 import java.util.Objects;
 
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+
+
 public class EntityIndicateOverlay implements HudRenderCallback {
 
     private static final Identifier MY_TEXTURE = new Identifier("tutorial", "textures/information/circle.png");
@@ -32,7 +38,7 @@ public class EntityIndicateOverlay implements HudRenderCallback {
             PigEntity.class, PIG_TEXTURE
     );
 
-    private boolean enable = true;
+    private boolean enable = false;
 
     private static PositionResult projectToScreen(Vec3d pos, Vec3d cameraPos, Matrix3f cameraDirection, int height, double fov) {
         Vec3f result = new Vec3f(cameraPos.subtract(pos));
@@ -127,6 +133,16 @@ public class EntityIndicateOverlay implements HudRenderCallback {
         RenderSystem.disableBlend();
 
         matrixStack.pop();
+    }
+
+    public LiteralArgumentBuilder<FabricClientCommandSource> registerCommand(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
+        return builder
+                .then(argument("opt", BoolArgumentType.bool())
+                        .executes((context -> {
+                            boolean opt = BoolArgumentType.getBool(context, "opt");
+                            this.setEnable(opt);
+                            return 1;
+                        })));
     }
 
     private record PositionResult(float x, float y, boolean front) {
