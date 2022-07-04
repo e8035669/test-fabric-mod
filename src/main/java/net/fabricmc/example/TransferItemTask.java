@@ -10,6 +10,7 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -185,7 +186,7 @@ public class TransferItemTask {
             LOGGER.info(ex);
             LOGGER.catching(ex);
             Text text =
-                    Text.literal(ex.getMessage()).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF0000)));
+                    Text.literal(ex.getMessage()).formatted(Formatting.RED);
             client.player.sendMessage(text);
         } finally {
             walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
