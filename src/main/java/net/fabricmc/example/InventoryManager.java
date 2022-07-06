@@ -3,8 +3,10 @@ package net.fabricmc.example;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import org.apache.logging.log4j.LogManager;
@@ -21,6 +23,10 @@ public class InventoryManager {
 
     private Optional<Screen> lastScreen = Optional.empty();
 
+    public InventoryManager() {
+
+    }
+
     public void tick() {
         MinecraftClient client = MinecraftClient.getInstance();
 
@@ -32,16 +38,19 @@ public class InventoryManager {
     }
 
     private void onScreenOpen(MinecraftClient client) {
-        if (client.currentScreen instanceof GenericContainerScreen) {
+        if (client.currentScreen instanceof HandledScreen<?>) {
             showAllSlots(client);
         }
     }
 
     private void showAllSlots(MinecraftClient client) {
-        GenericContainerScreen screen = (GenericContainerScreen) client.currentScreen;
-        GenericContainerScreenHandler handler = screen.getScreenHandler();
-        Inventory playerInventory = client.player.getInventory();
-        Inventory boxInventory = handler.getInventory();
+        HandledScreen<?> screen = (HandledScreen<?>) client.currentScreen;
+        ScreenHandler handler = screen.getScreenHandler();
+
+        LOGGER.info("Show all slots in %s".formatted(screen.getTitle()));
+        for (Slot slot : handler.slots) {
+            LOGGER.info("Slot %d: (%s, %d)".formatted(slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex()));
+        }
 
         // List<Slot> boxItem = new ArrayList<>();
         // for (int i = 0; i < handler.getRows() * 9; ++i) {

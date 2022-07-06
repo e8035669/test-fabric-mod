@@ -1,17 +1,23 @@
 package net.fabricmc.example;
 
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Style;
+import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.screen.PlayerScreenHandler;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.tools.picocli.CommandLine;
 
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 public class AttackMobsTask {
     public static final Logger LOGGER = LogManager.getLogger("AttackMobsTask");
@@ -45,11 +51,25 @@ public class AttackMobsTask {
         try {
             HotPlugMouse.unplugMouse(client);
 
-            while (!future.isCancelled()) {
-                break;
+            client.execute(() -> client.setScreen(null));
+            Thread.sleep(500);
 
+            client.options.inventoryKey.setPressed(true);
+            KeyPressable.of(client.options.inventoryKey).onKeyPressed();
+            Thread.sleep(200);
+            client.options.inventoryKey.setPressed(false);
 
+            if (client.currentScreen instanceof InventoryScreen) {
+                InventoryScreen screen = (InventoryScreen) client.currentScreen;
+                ScreenHandler handler = screen.getScreenHandler();
+
+                PlayerSlots playerSlots = new PlayerSlots((PlayerScreenHandler) handler);
+                LOGGER.info("Bag slots");
+                printSlots(playerSlots.bagSlots);
+                LOGGER.info("Shortcut slots");
+                printSlots(playerSlots.shortcutSlots);
             }
+
 
         } catch (Exception ex) {
             LOGGER.info(ex);
@@ -63,6 +83,20 @@ public class AttackMobsTask {
             LOGGER.info("Attack mob task finish");
             client.player.sendMessage(Text.literal("Attack mob task finish"));
         }
+    }
+
+    private static void printSlots(List<Slot> slots) {
+        for (Slot slot : slots) {
+            LOGGER.info("Slot %d: (%s, %d, %s)".formatted(
+                    slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex(),
+                    slot.inventory.getStack(slot.getIndex())));
+        }
+    }
+
+    public LiteralArgumentBuilder<FabricClientCommandSource> registerCommand(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
+        return builder
+                .then(literal("start").executes(CommandHelper.wrap(this::startAttackMobs)))
+                .then(literal("stop").executes(CommandHelper.wrap(this::stopAttackMobs)));
     }
 
 
