@@ -51,33 +51,6 @@ public class InventoryManager {
         for (Slot slot : handler.slots) {
             LOGGER.info("Slot %d: (%s, %d)".formatted(slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex()));
         }
-
-        // List<Slot> boxItem = new ArrayList<>();
-        // for (int i = 0; i < handler.getRows() * 9; ++i) {
-        //     Slot slot = handler.slots.get(i);
-        //     if (!slot.getStack().isEmpty()) {
-        //         boxItem.add(slot);
-        //     }
-        // }
-
-        // List<Slot> emptySlot = new ArrayList<>();
-        // int offset = handler.getRows() * 9;
-        // for (int i = 0; i < 9 * 4; ++i) {
-        //     Slot slot = handler.slots.get(i + offset);
-        //     if (slot.getStack().isEmpty()) {
-        //         emptySlot.add(slot);
-        //     }
-        // }
-
-        // for (int i = 0; i < Math.min(boxItem.size(), emptySlot.size()); ++i) {
-        //     Slot fromSlot = boxItem.get(i);
-        //     Slot toSlot = emptySlot.get(i);
-
-        //     client.interactionManager.clickSlot(
-        //             handler.syncId, fromSlot.id, 0, SlotActionType.PICKUP, client.player);
-        //     client.interactionManager.clickSlot(
-        //             handler.syncId, toSlot.id, 0, SlotActionType.PICKUP, client.player);
-        // }
     }
 
     public static List<Slot> selectAllItemInBox(MinecraftClient client) {

@@ -1,5 +1,9 @@
 package net.fabricmc.example;
 
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.screen.slot.Slot;
 
@@ -24,4 +28,15 @@ public class PlayerSlots {
         shortcutSlots = slots.subList(36, 36 + 9);
         offhandSlot = slots.get(45);
     }
+
+    public static List<ItemStack> getHotBarItems(MinecraftClient client) {
+        return getHotBarItems(client.player.getInventory());
+    }
+
+    public static List<ItemStack> getHotBarItems(PlayerInventory playerInventory) {
+        return playerInventory.main.subList(0, 9);
+    }
+
+
+
 }

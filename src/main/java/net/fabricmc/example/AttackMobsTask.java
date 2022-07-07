@@ -4,6 +4,12 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -12,10 +18,13 @@ import net.minecraft.util.Formatting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
@@ -54,22 +63,13 @@ public class AttackMobsTask {
             client.execute(() -> client.setScreen(null));
             Thread.sleep(500);
 
-            client.options.inventoryKey.setPressed(true);
-            KeyPressable.of(client.options.inventoryKey).onKeyPressed();
-            Thread.sleep(200);
-            client.options.inventoryKey.setPressed(false);
-
-            if (client.currentScreen instanceof InventoryScreen) {
-                InventoryScreen screen = (InventoryScreen) client.currentScreen;
-                ScreenHandler handler = screen.getScreenHandler();
-
-                PlayerSlots playerSlots = new PlayerSlots((PlayerScreenHandler) handler);
-                LOGGER.info("Bag slots");
-                printSlots(playerSlots.bagSlots);
-                LOGGER.info("Shortcut slots");
-                printSlots(playerSlots.shortcutSlots);
+            List<ItemStack> hotBarItems = PlayerSlots.getHotBarItems(client);
+            int[] bowIndex = filterItem(hotBarItems, Items.BOW);
+            if (bowIndex.length == 0) {
+                throw new RuntimeException("There is no bow");
             }
 
+            pressKey(client.options.hotbarKeys[bowIndex[0]]);
 
         } catch (Exception ex) {
             LOGGER.info(ex);
@@ -97,6 +97,22 @@ public class AttackMobsTask {
         return builder
                 .then(literal("start").executes(CommandHelper.wrap(this::startAttackMobs)))
                 .then(literal("stop").executes(CommandHelper.wrap(this::stopAttackMobs)));
+    }
+
+    private void pressKey(KeyBinding keyBinding) throws InterruptedException {
+        keyBinding.setPressed(true);
+        KeyPressable.of(keyBinding).onKeyPressed();
+        Thread.sleep(200);
+        keyBinding.setPressed(false);
+    }
+    private void pressInventoryKey() throws InterruptedException {
+        pressKey(client.options.inventoryKey);
+    }
+
+    private int[] filterItem(List<ItemStack> itemStacks, Item item) {
+        return IntStream.range(0, itemStacks.size())
+                .filter((i) -> itemStacks.get(i).isOf(item))
+                .toArray();
     }
 
 
