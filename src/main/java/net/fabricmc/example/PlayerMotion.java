@@ -285,8 +285,8 @@ class LookDirection implements Tickable {
                 float currentPitch = player.getPitch();
                 float currentYaw = player.getYaw();
 
-                if (MathHelper.approximatelyEquals(MathHelper.angleBetween(currentPitch, targetPitch), 0.0f)
-                        && MathHelper.approximatelyEquals(MathHelper.angleBetween(currentYaw, targetYaw), 0.0f)) {
+                if (Math.abs(MathHelper.angleBetween(currentPitch, targetPitch)) <  0.01f
+                        && Math.abs(MathHelper.angleBetween(currentYaw, targetYaw)) < 0.01f) {
                     status = Status.END;
                     break;
                 }
