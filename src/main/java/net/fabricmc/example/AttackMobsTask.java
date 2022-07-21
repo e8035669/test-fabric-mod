@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -20,10 +21,7 @@ import net.minecraft.util.Formatting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -66,8 +64,10 @@ public class AttackMobsTask {
             HotPlugMouse.unplugMouse(client);
 
             while (true) {
-                client.execute(() -> client.setScreen(null));
-                Thread.sleep(500);
+                if (Objects.nonNull(client.currentScreen)) {
+                    client.execute(() -> client.setScreen(null));
+                    Thread.sleep(500);
+                }
 
                 List<ItemStack> hotBarItems = PlayerSlots.getHotBarItems(client);
                 int[] bowIndex = filterItem(hotBarItems, Items.BOW);
@@ -87,7 +87,10 @@ public class AttackMobsTask {
 
                 Optional<Entity> entity = StreamSupport
                         .stream(client.world.getEntities().spliterator(), false)
-                        .filter(e -> e instanceof Monster && e.getPos().distanceTo(client.player.getPos()) < 20)
+                        .filter(e -> e instanceof Monster
+                                && e.getPos().distanceTo(client.player.getPos()) < 20
+                                && e instanceof LivingEntity
+                                && !((LivingEntity) e).isDead())
                         .min(Comparator.comparingDouble(e -> e.getPos().distanceTo(client.player.getPos())));
 
                 if (entity.isPresent()) {
@@ -102,6 +105,8 @@ public class AttackMobsTask {
                     }
                     Thread.sleep(20);
                     client.options.useKey.setPressed(false);
+                    Thread.sleep(20);
+
                 } else {
                     LOGGER.info("Entity not found");
                 }
