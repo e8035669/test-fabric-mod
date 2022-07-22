@@ -29,7 +29,7 @@ public class InformationOverlay implements HudRenderCallback {
     private ShowMode showMode;
 
     public InformationOverlay() {
-        setShowMode(ShowMode.MOTION);
+        setShowMode(ShowMode.NONE);
     }
 
     public void setShowMode(ShowMode showMode) {

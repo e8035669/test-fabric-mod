@@ -19,11 +19,13 @@ public class AStarSearch {
     private final MinecraftClient client;
     private final BlockPos start;
     private final BlockPos end;
+    private boolean isNearMode;
 
     public AStarSearch(MinecraftClient client, BlockPos start, BlockPos end) {
         this.client = client;
         this.start = start;
         this.end = end;
+        this.isNearMode = false;
     }
 
     public static Optional<BlockPos> verticalFindFloor(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
@@ -34,6 +36,18 @@ public class AStarSearch {
             }
         }
         return Optional.empty();
+    }
+
+    private Optional<BlockPos> verticalFindFloorOrEnd(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
+        if (blockPos.getX() == end.getX() && blockPos.getZ() == end.getZ()) {
+            for (int i = highest; i >= lowest; i--) {
+                BlockPos blockPos1 = blockPos.add(0, i, 0);
+                if (blockPos1.equals(end)) {
+                    return Optional.of(blockPos1);
+                }
+            }
+        }
+        return verticalFindFloor(world, blockPos, lowest, highest);
     }
 
     public static List<BlockPos> findNearFloor(ClientWorld world, BlockPos centerBlock, int distance) {
@@ -50,8 +64,6 @@ public class AStarSearch {
                 .min(Comparator.comparingDouble(b -> fromPoint.squaredDistanceTo(Vec3d.ofBottomCenter(b))));
     }
 
-
-
     public static boolean isFloor(ClientWorld world, BlockPos blockPos) {
         boolean ret = false;
 
@@ -65,7 +77,7 @@ public class AStarSearch {
 
         if (vertStates.get(0).isSolidBlock(world, verticalBlocks.get(0))
                 && vertStates.get(1).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)
-                && vertStates.get(2).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)) {
+                && vertStates.get(2).canPathfindThrough(world, verticalBlocks.get(2), NavigationType.AIR)) {
             ret = true;
         }
 
@@ -103,6 +115,11 @@ public class AStarSearch {
             }
         }
         return ret;
+    }
+
+    public AStarSearch setNearMode(boolean nearMode) {
+        this.isNearMode = nearMode;
+        return this;
     }
 
     public Optional<WalkPath> search() {
@@ -144,6 +161,9 @@ public class AStarSearch {
                 reversedPath.add(fromBlock.get());
                 fromBlock = cameFrom.get(fromBlock.get());
             }
+            if (isNearMode) {
+                reversedPath.remove(0);
+            }
 
             return Optional.of(WalkPath.of(Lists.reverse(reversedPath)));
         }
@@ -166,15 +186,15 @@ public class AStarSearch {
 
     public List<BlockPos> findNeighbors(BlockPos blockPos) {
         Optional<BlockPos>[] floors = new Optional[]{
-                verticalFindFloor(client.world, blockPos.add(-1, 0, -1), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(-1, 0, 0), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(-1, 0, 1), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(0, 0, -1), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(-1, 0, -1), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(-1, 0, 0), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(-1, 0, 1), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(0, 0, -1), -3, 1),
                 Optional.of(blockPos),
-                verticalFindFloor(client.world, blockPos.add(0, 0, 1), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, -1), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, 0), -3, 1),
-                verticalFindFloor(client.world, blockPos.add(1, 0, 1), -3, 1)
+                verticalFindFloorOrEnd(client.world, blockPos.add(0, 0, 1), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(1, 0, -1), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(1, 0, 0), -3, 1),
+                verticalFindFloorOrEnd(client.world, blockPos.add(1, 0, 1), -3, 1)
         };
 
         List<BlockPos> ret = new ArrayList<>();

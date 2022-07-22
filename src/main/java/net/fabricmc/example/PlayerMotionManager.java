@@ -30,6 +30,8 @@ public class PlayerMotionManager {
 
     private AttackMobsTask attackMobsTask;
 
+    private NaiveFishingTask naiveFishingTask;
+
 
     public PlayerMotionManager(MinecraftClient client, ScheduledExecutorService executor, XrayRender xrayRender) {
         this.client = client;
@@ -39,13 +41,15 @@ public class PlayerMotionManager {
 
         transferItemTask = new TransferItemTask(client, executor, xrayRender, playerMotion);
         attackMobsTask = new AttackMobsTask(client, executor, xrayRender, playerMotion);
+        naiveFishingTask = new NaiveFishingTask(client, executor, xrayRender, playerMotion);
     }
 
 
     public LiteralArgumentBuilder<FabricClientCommandSource> registerCommand(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
         return builder
                 .then(transferItemTask.registerCommand(literal("transferItem")))
-                .then(attackMobsTask.registerCommand(literal("attackMobs")));
+                .then(attackMobsTask.registerCommand(literal("attackMobs")))
+                .then(naiveFishingTask.registerCommand(literal("naiveFishing")));
     }
 
 }

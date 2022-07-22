@@ -199,26 +199,44 @@ public class TransferItemTask {
     }
 
     private void moveToNearBlock(BlockPos sourceBlockPos) throws InterruptedException {
-        List<BlockPos> blocksNear = AStarSearch.findNearFloor(client.world, sourceBlockPos, 1);
-        Optional<BlockPos> nearestBlock = AStarSearch.findNearestOne(blocksNear, client.player.getPos());
-        if (nearestBlock.isPresent()) {
-            AStarSearch aStarSearch = new AStarSearch(client, client.player.getBlockPos(), nearestBlock.get());
-            Optional<WalkPath> walkPath = aStarSearch.search();
-            if (walkPath.isPresent()) {
+        AStarSearch aStarSearch = new AStarSearch(client, client.player.getBlockPos(), sourceBlockPos);
+        aStarSearch.setNearMode(true);
+        Optional<WalkPath> walkPath = aStarSearch.search();
+        if (walkPath.isPresent()) {
+            WalkFollowPathTask walkFollowPathTask = new WalkFollowPathTask(client, walkPath.get());
+            playerMotion.addTask(walkFollowPathTask);
+            walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
+            walkPathRender = Optional.of(new WalkPathRender(walkPath.get(), 0xA0FFFFFF));
+            xrayRender.getRenderables().add(walkPathRender.get());
 
-                WalkFollowPathTask walkFollowPathTask = new WalkFollowPathTask(client, walkPath.get());
-                playerMotion.addTask(walkFollowPathTask);
-
-                walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
-                walkPathRender = Optional.of(new WalkPathRender(walkPath.get(), 0xA0FFFFFF));
-                xrayRender.getRenderables().add(walkPathRender.get());
-                LOGGER.info("Wait for WalkFollowPathTask to finish.");
-                while (!walkFollowPathTask.isFinished()) {
-                    Thread.sleep(10);
-                }
-                LOGGER.info("Wait for WalkFollowPathTask is finished.");
+            LOGGER.info("Wait for WalkFollowPathTask to finish.");
+            while (!walkFollowPathTask.isFinished()) {
+                Thread.sleep(10);
             }
+            LOGGER.info("Wait for WalkFollowPathTask is finished.");
         }
+
+
+//        List<BlockPos> blocksNear = AStarSearch.findNearFloor(client.world, sourceBlockPos, 1);
+//        Optional<BlockPos> nearestBlock = AStarSearch.findNearestOne(blocksNear, client.player.getPos());
+//        if (nearestBlock.isPresent()) {
+//            AStarSearch aStarSearch = new AStarSearch(client, client.player.getBlockPos(), nearestBlock.get());
+//            Optional<WalkPath> walkPath = aStarSearch.search();
+//            if (walkPath.isPresent()) {
+//
+//                WalkFollowPathTask walkFollowPathTask = new WalkFollowPathTask(client, walkPath.get());
+//                playerMotion.addTask(walkFollowPathTask);
+//
+//                walkPathRender.ifPresent(xrayRender.getRenderables()::remove);
+//                walkPathRender = Optional.of(new WalkPathRender(walkPath.get(), 0xA0FFFFFF));
+//                xrayRender.getRenderables().add(walkPathRender.get());
+//                LOGGER.info("Wait for WalkFollowPathTask to finish.");
+//                while (!walkFollowPathTask.isFinished()) {
+//                    Thread.sleep(10);
+//                }
+//                LOGGER.info("Wait for WalkFollowPathTask is finished.");
+//            }
+//        }
 
         playerMotion.lookDirection(Vec3d.ofCenter(sourceBlockPos));
 
