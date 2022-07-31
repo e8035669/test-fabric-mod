@@ -246,11 +246,19 @@ class LookDirection implements Tickable {
     private boolean isFinished;
 
     public LookDirection(MinecraftClient client, Vec3d pos) {
+        this(client, pos, 0, 0);
+    }
+
+    public LookDirection(MinecraftClient client, float targetPitch, float targetYaw) {
+        this(client, null, targetPitch, targetYaw);
+    }
+
+    private LookDirection(MinecraftClient client, Vec3d pos, float targetPitch, float targetYaw) {
         this.client = client;
         this.pos = pos;
         this.player = client.player;
-        targetYaw = 0;
-        targetPitch = 0;
+        this.targetYaw = targetYaw;
+        this.targetPitch = targetPitch;
         status = Status.START;
         this.isCanceled = false;
     }
@@ -263,14 +271,16 @@ class LookDirection implements Tickable {
         }
         switch (status) {
             case START -> {
-                var yaw = MoveHelper.getTargetYaw(player, pos);
-                var pitch = MoveHelper.getTargetPitch(player, pos);
+                if (this.pos != null) {
+                    var yaw = MoveHelper.getTargetYaw(player, pos);
+                    var pitch = MoveHelper.getTargetPitch(player, pos);
 
-                if (yaw.isPresent()) {
-                    targetYaw = yaw.get();
-                }
-                if (pitch.isPresent()) {
-                    targetPitch = pitch.get();
+                    if (yaw.isPresent()) {
+                        targetYaw = yaw.get();
+                    }
+                    if (pitch.isPresent()) {
+                        targetPitch = pitch.get();
+                    }
                 }
 
                 float yawDiff = MathHelper.abs(MathHelper.subtractAngles(player.getYaw(), targetYaw));

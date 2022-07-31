@@ -7,12 +7,12 @@ import java.util.List;
 
 public class GenericContainerSlots {
     public List<Slot> playerSlots;
-    public List<Slot> bagSlots;
+    public List<Slot> boxSlots;
 
     public GenericContainerSlots(GenericContainerScreenHandler handler) {
         int offset = handler.getRows() * 9;
 
-        bagSlots = handler.slots.subList(0, offset);
+        boxSlots = handler.slots.subList(0, offset);
         playerSlots = handler.slots.subList(offset, handler.slots.size());
     }
 }

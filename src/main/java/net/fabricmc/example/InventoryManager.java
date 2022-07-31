@@ -144,6 +144,18 @@ public class InventoryManager {
         }
     }
 
+    public static void fastTransferSlots(MinecraftClient client, List<Integer> slotIds) {
+        if (checkIfScreenNotOpened(client)) {
+            return;
+        }
+        GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
+        for (int slotId: slotIds) {
+            client.interactionManager.clickSlot(
+                    handler.syncId, slotId, 0, SlotActionType.QUICK_MOVE, client.player
+            );
+        }
+    }
+
     public static boolean checkIfScreenNotOpened(MinecraftClient client) {
         return !(client.currentScreen instanceof GenericContainerScreen);
     }

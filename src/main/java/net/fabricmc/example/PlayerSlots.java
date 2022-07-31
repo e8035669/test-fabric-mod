@@ -17,6 +17,7 @@ public class PlayerSlots {
     public List<Slot> bagSlots;
     public List<Slot> shortcutSlots;
     public Slot offhandSlot;
+    public List<Slot> allSlots;
 
     public PlayerSlots(PlayerScreenHandler handler) {
         List<Slot> slots = handler.slots;
@@ -27,6 +28,7 @@ public class PlayerSlots {
         bagSlots = slots.subList(9, 9 + 3 * 9);
         shortcutSlots = slots.subList(36, 36 + 9);
         offhandSlot = slots.get(45);
+        allSlots = slots;
     }
 
     public static List<ItemStack> getHotBarItems(MinecraftClient client) {
