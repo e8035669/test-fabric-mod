@@ -33,8 +33,8 @@ public class XrayRender implements WorldRenderEvents.End {
         RenderSystem.defaultBlendFunc();
         RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        RenderSystem.setShader(GameRenderer::getRenderTypeLinesShader);
-        RenderSystem.disableTexture();
+        RenderSystem.setShader(GameRenderer::getRenderTypeLinesProgram);
+        // RenderSystem.disableTexture();
         RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         // RenderSystem.depthMask(false);
@@ -61,7 +61,7 @@ public class XrayRender implements WorldRenderEvents.End {
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
-        RenderSystem.enableTexture();
+        // RenderSystem.enableTexture();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
         matrixStack1.pop();

@@ -1,9 +1,10 @@
 package net.fabricmc.example;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
@@ -29,7 +30,7 @@ public class MyTestScreen extends Screen {
         super(title);
         this.client = client;
         this.myUtils2 = myUtils2;
-        this.passEvents = true;
+        // this.passEvents = true;
         pressers = new ArrayList<>();
     }
 
@@ -38,13 +39,15 @@ public class MyTestScreen extends Screen {
         super.init();
         this.buttons.clear();
         this.buttons.add(this.addDrawableChild(
-                new ButtonWidget(this.width / 2 - 150, this.height / 2 - 100, 100, 20,
-                        Text.translatable("jeff.text.test_button"), button -> {
-                    this.client.player.sendMessage(Text.of("Button click"), false);
-                })
+                ButtonWidget.builder(Text.translatable("jeff.text.test_button"),
+                                button -> this.client.player.sendMessage(Text.of("Button click"), false))
+                        .position(this.width / 2 - 150, this.height / 2 - 100)
+                        .size(100, 20).build()
         ));
-        startScriptButton = new ButtonWidget(this.width / 2 + 50, this.height / 2 - 100, 100, 20,
-                Text.of("Start Script"), this::startScript);
+        startScriptButton = ButtonWidget.builder(Text.of("Start Script"), this::startScript)
+                .position(this.width / 2 + 50, this.height / 2 - 100)
+                .size(100, 20)
+                .build();
         this.buttons.add(this.addDrawableChild(startScriptButton));
         button2 = new ButtonWidget2(this.width / 2 - 150, this.height / 2 - 60, 100, 20,
                 Text.of("Button2"), button -> {
@@ -107,21 +110,23 @@ public class MyTestScreen extends Screen {
         }
     }
 
+
     @Override
-    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
-        this.fillGradient(matrices, 0, 0, this.width, this.height, 0x60000000, 0x60000000);
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        MatrixStack matrices = context.getMatrices();
+        context.fillGradient(0, 0, this.width, this.height, 0x60000000, 0x60000000);
         matrices.push();
         // matrices.scale(2.0f, 2.0f, 2.0f);
-        DrawableHelper.drawCenteredText(matrices, this.textRenderer, this.title, this.width / 2, 10, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, 0xFFFFFF);
 
         var player = this.client.player;
         String position = String.format("Pos: (%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-        DrawableHelper.drawStringWithShadow(matrices, this.textRenderer, position, 0, this.height - 20, 0x50FFFFFF);
+        context.drawTextWithShadow(this.textRenderer, position, 0, this.height - 20, 0x50FFFFFF);
         String dir = String.format("Dir: (%.2f, %.2f)", player.getYaw(), player.getPitch());
-        DrawableHelper.drawStringWithShadow(matrices, this.textRenderer, dir, 0, this.height - 10, 0x50FFFFFF);
+        context.drawTextWithShadow(this.textRenderer, dir, 0, this.height - 10, 0x50FFFFFF);
 
         matrices.pop();
-        super.render(matrices, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
     }
 
     @Override

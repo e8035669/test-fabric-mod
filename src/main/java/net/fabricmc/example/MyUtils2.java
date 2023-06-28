@@ -13,7 +13,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -31,6 +30,7 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.biome.source.BiomeAccess;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.joml.Matrix4f;
 
 import java.util.List;
 import java.util.Optional;
@@ -361,13 +361,13 @@ public class MyUtils2 {
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         RenderSystem.lineWidth(6.0f);
-        RenderSystem.disableTexture();
+        // RenderSystem.disableTexture();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
 
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder vertexConsumer = tessellator.getBuffer();
-        RenderSystem.setShader(GameRenderer::getRenderTypeLinesShader);
+        RenderSystem.setShader(GameRenderer::getRenderTypeLinesProgram);
         vertexConsumer.begin(VertexFormat.DrawMode.DEBUG_LINE_STRIP, VertexFormats.POSITION_COLOR);
 
         Matrix4f positionMatrix = matrixStack.peek().getPositionMatrix();
@@ -393,7 +393,7 @@ public class MyUtils2 {
 
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
-        RenderSystem.enableTexture();
+        // RenderSystem.enableTexture();
         RenderSystem.disableBlend();
     }
 

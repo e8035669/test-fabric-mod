@@ -3,6 +3,8 @@ package net.fabricmc.example;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageSources;
+import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -24,7 +26,7 @@ public class AttackBlockAction implements AttackBlockCallback {
                fire before the spectator check */
         if (state.isToolRequired() && !player.isSpectator() &&
                 player.getMainHandStack().isEmpty()) {
-            player.damage(DamageSource.GENERIC, 1.0F);
+            player.damage(player.getDamageSources().generic(), 1.0F);
             LOGGER.info("AttackBlockTriggered " + state);
 
         }

@@ -7,7 +7,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -17,6 +17,10 @@ import net.minecraft.entity.passive.PigEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.*;
+import org.joml.Matrix3f;
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
+import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.Objects;
@@ -41,21 +45,21 @@ public class EntityIndicateOverlay implements HudRenderCallback {
     private boolean enable = false;
 
     private static PositionResult projectToScreen(Vec3d pos, Vec3d cameraPos, Matrix3f cameraDirection, int height, double fov) {
-        Vec3f result = new Vec3f(cameraPos.subtract(pos));
-        result.transform(cameraDirection);
+        Vector3f result = cameraPos.subtract(pos).toVector3f();
+        cameraDirection.transform(result);
 
         float half_height = height / 2.0f;
         float scale_factor =
-                (float) (half_height / (result.getZ() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2)));
+                (float) (half_height / (result.z() * Math.tan(MathHelper.RADIANS_PER_DEGREE * fov / 2)));
 
-        result.multiplyComponentwise(-scale_factor, -scale_factor, 1);
-        return new PositionResult(result.getX(), result.getY(), result.getZ() < 0);
+        result.mul(-scale_factor, -scale_factor, 1);
+        return new PositionResult(result.x(), result.y(), result.z() < 0);
     }
 
     @Override
-    public void onHudRender(MatrixStack matrixStack, float tickDelta) {
+    public void onHudRender(DrawContext drawContext, float tickDelta) {
         if (enable) {
-            drawEntityPositions2(matrixStack, tickDelta);
+            drawEntityPositions2(drawContext, tickDelta);
         }
     }
 
@@ -67,7 +71,8 @@ public class EntityIndicateOverlay implements HudRenderCallback {
         this.enable = enable;
     }
 
-    public void drawEntityPositions2(MatrixStack matrixStack, float tickDelta) {
+    public void drawEntityPositions2(DrawContext drawContext, float tickDelta) {
+        MatrixStack matrixStack = drawContext.getMatrices();
         matrixStack.push();
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -80,13 +85,13 @@ public class EntityIndicateOverlay implements HudRenderCallback {
 
         Camera camera = client.gameRenderer.getCamera();
 
-        Quaternion cameraDirection1 = camera.getRotation();
+        Quaternionf cameraDirection1 = camera.getRotation();
         cameraDirection1.conjugate();
-        Matrix3f cameraDirection = new Matrix3f(cameraDirection1);
+        Matrix3f cameraDirection = cameraDirection1.get(new Matrix3f());
         Vec3d cameraPos = camera.getPos();
 
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 0.8f);
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShader(GameRenderer::getPositionTexProgram);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
 
@@ -96,14 +101,14 @@ public class EntityIndicateOverlay implements HudRenderCallback {
         for (Entity entity : client.world.getEntities()) {
             Identifier entityImage = SUPPORT_ENTITIES.get(entity.getClass());
             if (entity.getSyncedPos().distanceTo(cameraPos) < 60 && Objects.nonNull(entityImage)) {
-                RenderSystem.setShaderTexture(0, entityImage);
+                // RenderSystem.setShaderTexture(0, entityImage);
                 PositionResult positionResult = projectToScreen(entity.getEyePos().add(0, 0.5, 0), cameraPos,
                         cameraDirection, height, fov);
                 if (positionResult.front) {
                     int drawX = MathHelper.clamp((int) (positionResult.x + halfWidth - border), 0, width - textureSize);
                     int drawY = MathHelper.clamp((int) (positionResult.y + halfHeight - border), 0, height - textureSize);
 
-                    DrawableHelper.drawTexture(matrixStack, drawX, drawY,
+                    drawContext.drawTexture(entityImage, drawX, drawY,
                             0f, 0f, textureSize, textureSize, textureSize, textureSize);
                 } else {
                     double drawX = -positionResult.x;
@@ -125,7 +130,7 @@ public class EntityIndicateOverlay implements HudRenderCallback {
                     }
                     drawX += (halfWidth - border);
                     drawY += (halfHeight - border);
-                    DrawableHelper.drawTexture(matrixStack, (int) drawX, (int) drawY,
+                    drawContext.drawTexture(entityImage, (int) drawX, (int) drawY,
                             0f, 0f, textureSize, textureSize, textureSize, textureSize);
                 }
             }
@@ -144,6 +149,8 @@ public class EntityIndicateOverlay implements HudRenderCallback {
                             return 1;
                         })));
     }
+
+
 
     private record PositionResult(float x, float y, boolean front) {
     }

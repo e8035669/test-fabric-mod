@@ -1,5 +1,6 @@
 package net.fabricmc.example;
 
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
@@ -13,7 +14,7 @@ public class ButtonWidget2 extends ButtonWidget {
 
     public ButtonWidget2(int x, int y, int width, int height, Text message, PressAction onPress,
                          ReleaseAction onRelease) {
-        super(x, y, width, height, message, onPress);
+        super(x, y, width, height, message, onPress, DEFAULT_NARRATION_SUPPLIER);
         this.onRelease = onRelease;
         lastHovered = false;
         isPressed = false;
@@ -33,8 +34,8 @@ public class ButtonWidget2 extends ButtonWidget {
     }
 
     @Override
-    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
-        super.render(matrices, mouseX, mouseY, delta);
+    public void renderButton(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
         if (lastHovered != this.hovered) {
             lastHovered = this.hovered;
             if (!this.hovered && isPressed) {

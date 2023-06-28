@@ -4,16 +4,16 @@ import net.fabricmc.example.WorldRendererInterface;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.ShaderEffect;
+import net.minecraft.client.gl.PostEffectProcessor;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.profiler.Profiler;
 import net.minecraft.util.shape.VoxelShape;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,7 +26,7 @@ public class WorldRendererMixin implements WorldRendererInterface {
     @Shadow
     private BufferBuilderStorage bufferBuilders;
     @Shadow
-    private ShaderEffect entityOutlineShader;
+    private PostEffectProcessor entityOutlinePostProcessor;
     @Shadow
     private MinecraftClient client;
     @Shadow
@@ -35,8 +35,8 @@ public class WorldRendererMixin implements WorldRendererInterface {
     private boolean isForceOutline;
 
     @Shadow
-    private static void drawShapeOutline(MatrixStack matrices, VertexConsumer vertexConsumer, VoxelShape voxelShape,
-                                         double d, double e, double f, float g, float h, float i, float j) {
+    public static void drawShapeOutline(MatrixStack matrices, VertexConsumer vertexConsumer, VoxelShape shape,
+                                        double offsetX, double offsetY, double offsetZ, float red, float green, float blue, float alpha, boolean bl) {
     }
 
     @Override
@@ -49,15 +49,10 @@ public class WorldRendererMixin implements WorldRendererInterface {
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/render/OutlineVertexConsumerProvider;draw()V",
                     shift = At.Shift.AFTER),
-            locals = LocalCapture.CAPTURE_FAILSOFT)
-    private void injectOutlineShader(MatrixStack matrices, float tickDelta, long arg2, boolean renderBlockOutline,
-                                     Camera camera, GameRenderer gameRenderer,
-                                     LightmapTextureManager lightmapTextureManager, Matrix4f positionMatrix,
-                                     CallbackInfo ci, Profiler profiler, boolean bl, Vec3d vec3d, double d, double e,
-                                     double f, Matrix4f matrix4f, boolean bl2, Frustum frustum, float g, boolean bl3,
-                                     boolean bl4, VertexConsumerProvider.Immediate immediate) {
-        if (!bl4 && isForceOutline) {
-            this.entityOutlineShader.render(tickDelta);
+            locals = LocalCapture.CAPTURE_FAILHARD)
+    private void injectOutlineShader(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f positionMatrix, CallbackInfo ci, Profiler profiler, Vec3d vec3d, double d, double e, double f, Matrix4f matrix4f, boolean bl, Frustum frustum, float g, boolean bl2, boolean bl3, VertexConsumerProvider.Immediate immediate) {
+        if (!bl3 && isForceOutline) {
+            this.entityOutlinePostProcessor.render(tickDelta);
             this.client.getFramebuffer().beginWrite(false);
         }
         isForceOutline = false;
@@ -83,7 +78,7 @@ public class WorldRendererMixin implements WorldRendererInterface {
                                   double e, double f, BlockPos pos, BlockState state) {
         drawShapeOutline(matrices, vertexConsumer, state.getOutlineShape(this.world, pos, ShapeContext.of(entity)),
                 (double) pos.getX() - d, (double) pos.getY() - e, (double) pos.getZ() - f,
-                0.0f, 0.0f, 0.0f, 0.4f);
+                0.0f, 0.0f, 0.0f, 0.4f, false);
     }
 
 }
