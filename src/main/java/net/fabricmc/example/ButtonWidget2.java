@@ -34,7 +34,7 @@ public class ButtonWidget2 extends ButtonWidget {
     }
 
     @Override
-    public void renderButton(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
         if (lastHovered != this.hovered) {
             lastHovered = this.hovered;
