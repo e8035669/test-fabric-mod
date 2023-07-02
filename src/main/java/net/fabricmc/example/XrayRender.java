@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.*;
 import net.minecraft.util.shape.VoxelShapes;
 
 import java.util.ArrayList;
@@ -81,7 +80,6 @@ public class XrayRender implements WorldRenderEvents.End {
             renderables.remove(renderable);
         }
     }
-
 
 
 }

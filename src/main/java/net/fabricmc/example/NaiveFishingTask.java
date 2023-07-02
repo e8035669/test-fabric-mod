@@ -8,7 +8,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.entity.projectile.FishingBobberEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -24,10 +23,14 @@ import net.minecraft.util.math.Vec3d;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -158,24 +161,12 @@ public class NaiveFishingTask {
 
                 pressKey(client.options.useKey, 60);
 
-                int timeout = 50;
-                while (timeout-- > 0) {
-                    if (client.player.fishHook != null) {
-                        break;
-                    }
-                    Thread.sleep(20);
-                }
-
+                waitFor(() -> Objects.nonNull(client.player.fishHook), 150, 20, true);
                 FishingBobberEntity fishHook = client.player.fishHook;
                 Fishable fishable = Fishable.of(fishHook);
 
-                timeout = 300;
-                while (timeout-- > 0) {
-                    if (fishable.getState() != FishingBobberEntity.State.FLYING || fishHook.isOnGround()) {
-                        break;
-                    }
-                    Thread.sleep(20);
-                }
+                waitFor(() -> fishable.getState() != FishingBobberEntity.State.FLYING || fishHook.isOnGround(),
+                        500, 20);
 
                 if (fishable.getState() == FishingBobberEntity.State.HOOKED_IN_ENTITY || fishHook.isOnGround()) {
                     int nextSlot = client.player.getInventory().selectedSlot;
@@ -183,16 +174,14 @@ public class NaiveFishingTask {
                     pressKey(client.options.hotbarKeys[nextSlot]);
                     continue;
                 }
-                timeout = 3000;
-                while (timeout -- > 0) {
-                    if (fishable.isCaughtFish()) {
-                        break;
-                    }
-                    Thread.sleep(20);
-                }
+
+                waitFor(fishable::isCaughtFish, 3000, 20);
+
                 pressKey(client.options.useKey, 60);
                 Thread.sleep(500);
 
+                // Wait fishhook disappear
+                waitFor(() -> Objects.isNull(client.player.fishHook), 150, 20, false);
 
                 boolean isMoveToOtherPlace = false;
                 // It is time to sleep
@@ -215,16 +204,18 @@ public class NaiveFishingTask {
                     moveToNearBlock(boxPosition);
                     pressKey(client.options.useKey);
 
+                    waitFor(() -> client.currentScreen instanceof GenericContainerScreen,
+                            50, 20, false);
+
                     if (!(client.currentScreen instanceof GenericContainerScreen)) {
                         throw new RuntimeException("Box is not open");
                     }
                     GenericContainerSlots genericContainerSlots =
                             new GenericContainerSlots(((GenericContainerScreen) client.currentScreen).getScreenHandler());
 
-                    int[] finalInventoryHasItem = inventoryHasItem;
                     LOGGER.info("bag has item");
                     List<Integer> slotids = genericContainerSlots.playerSlots.stream()
-                            .filter(slot -> Arrays.stream(finalInventoryHasItem).noneMatch(value -> slot.getIndex() == value))
+                            .filter(slot -> Arrays.stream(inventoryHasItem).noneMatch(value -> slot.getIndex() == value))
                             .map(slot -> slot.id).collect(Collectors.toList());
                     LOGGER.info("transfer slots %s".formatted(slotids));
 
@@ -355,8 +346,6 @@ public class NaiveFishingTask {
     }
 
 
-
-
     private int[] filterItem(List<ItemStack> itemStacks, Item item) {
         return IntStream.range(0, itemStacks.size())
                 .filter((i) -> itemStacks.get(i).isOf(item))
@@ -365,5 +354,28 @@ public class NaiveFishingTask {
 
     private void closeScreen() {
         client.setScreen(null);
+    }
+
+    private static void waitFor(BooleanSupplier func, int times, int checkInterval) {
+        waitFor(func, times, checkInterval, false);
+    }
+
+    private static void waitFor(BooleanSupplier func, int times, int checkInterval, boolean throwOnTimeout) {
+        boolean success = false;
+        while (times > 0) {
+            times--;
+            if (func.getAsBoolean()) {
+                success = true;
+                break;
+            }
+            try {
+                Thread.sleep(checkInterval);
+            } catch (InterruptedException ex) {
+                LOGGER.warn(ex);
+            }
+        }
+        if (!success && throwOnTimeout) {
+            throw new RuntimeException("Wait Timeout");
+        }
     }
 }

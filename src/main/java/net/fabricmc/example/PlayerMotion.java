@@ -2,18 +2,16 @@ package net.fabricmc.example;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.tick.Tick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 interface Tickable {
     boolean tick();
@@ -229,7 +227,10 @@ class LookDirection implements Tickable {
 
     private static float MAX_YAW_DELTA = 10.0f;
     private static float MAX_PITCH_DELTA = 1.0f;
-    private enum Status {START, MOVING, END};
+
+    private enum Status {START, MOVING, END}
+
+    ;
 
 
     private MinecraftClient client;
@@ -286,7 +287,7 @@ class LookDirection implements Tickable {
                 float yawDiff = MathHelper.abs(MathHelper.subtractAngles(player.getYaw(), targetYaw));
                 float pitchDiff = MathHelper.abs(MathHelper.subtractAngles(player.getPitch(), targetPitch));
 
-                int steps = Math.max((int)Math.max(yawDiff / MAX_YAW_DELTA, pitchDiff / MAX_PITCH_DELTA), 1);
+                int steps = Math.max((int) Math.max(yawDiff / MAX_YAW_DELTA, pitchDiff / MAX_PITCH_DELTA), 1);
                 this.maxYawDelta = yawDiff / steps;
                 this.maxPitchDelta = pitchDiff / steps;
                 status = Status.MOVING;
@@ -295,7 +296,7 @@ class LookDirection implements Tickable {
                 float currentPitch = player.getPitch();
                 float currentYaw = player.getYaw();
 
-                if (Math.abs(MathHelper.angleBetween(currentPitch, targetPitch)) <  0.01f
+                if (Math.abs(MathHelper.angleBetween(currentPitch, targetPitch)) < 0.01f
                         && Math.abs(MathHelper.angleBetween(currentYaw, targetYaw)) < 0.01f) {
                     status = Status.END;
                     break;

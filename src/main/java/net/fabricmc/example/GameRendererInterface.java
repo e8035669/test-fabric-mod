@@ -1,6 +1,5 @@
 package net.fabricmc.example;
 
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 
 public interface GameRendererInterface {

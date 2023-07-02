@@ -4,7 +4,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.inventory.Inventory;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -149,7 +148,7 @@ public class InventoryManager {
             return;
         }
         GenericContainerScreenHandler handler = ((GenericContainerScreen) client.currentScreen).getScreenHandler();
-        for (int slotId: slotIds) {
+        for (int slotId : slotIds) {
             client.interactionManager.clickSlot(
                     handler.syncId, slotId, 0, SlotActionType.QUICK_MOVE, client.player
             );

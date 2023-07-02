@@ -1,27 +1,17 @@
 package net.fabricmc.example;
 
-import com.google.common.collect.ImmutableMap;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.CowEntity;
-import net.minecraft.entity.passive.PigEntity;
-import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.projectile.FishingBobberEntity;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.StringIdentifiable;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.*;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
-import java.util.*;
+import java.util.EnumSet;
 
 public class InformationOverlay implements HudRenderCallback {
 
@@ -115,7 +105,6 @@ public class InformationOverlay implements HudRenderCallback {
 
         matrixStack.pop();
     }
-
 
 
     public enum ShowMode implements StringIdentifiable {

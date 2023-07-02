@@ -15,7 +15,8 @@ public class GameRendererMixin implements GameRendererInterface {
         return 0;
     }
 
-    @Shadow @Final
+    @Shadow
+    @Final
     private Camera camera;
 
     @Override

@@ -7,8 +7,9 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.*;
-import org.joml.Matrix3f;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -22,8 +23,6 @@ public class ProjectionUtils {
         this.xrayRender = xrayRender;
         this.renderable = null;
     }
-
-
 
 
     public int executeProject(CommandContext<FabricClientCommandSource> context) {

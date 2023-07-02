@@ -1,6 +1,5 @@
 package net.fabricmc.example;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -12,7 +11,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -20,13 +18,12 @@ import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.BlockStateArgument;
 import net.minecraft.command.argument.BlockStateArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.EnumArgumentType;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.item.Items;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.*;
-import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.biome.source.BiomeAccess;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -344,7 +341,6 @@ public class MyUtils2 {
         });
         return 1;
     }
-
 
 
     public void onAfterEntities(WorldRenderContext context) {

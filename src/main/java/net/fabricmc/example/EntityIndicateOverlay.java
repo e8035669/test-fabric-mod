@@ -16,10 +16,10 @@ import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.entity.passive.PigEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.*;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3f;
 import org.joml.Quaternionf;
-import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
 import java.util.Map;
@@ -149,7 +149,6 @@ public class EntityIndicateOverlay implements HudRenderCallback {
                             return 1;
                         })));
     }
-
 
 
     private record PositionResult(float x, float y, boolean front) {

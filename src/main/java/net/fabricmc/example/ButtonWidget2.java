@@ -2,7 +2,6 @@ package net.fabricmc.example;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 
 public class ButtonWidget2 extends ButtonWidget {
