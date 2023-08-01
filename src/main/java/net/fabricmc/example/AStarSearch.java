@@ -3,9 +3,12 @@ package net.fabricmc.example;
 import com.google.common.collect.Lists;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.SlabBlock;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.structure.StrongholdGenerator;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -75,7 +78,9 @@ public class AStarSearch {
         );
         List<BlockState> vertStates = verticalBlocks.stream().map(world::getBlockState).toList();
 
-        if (vertStates.get(0).isSolidBlock(world, verticalBlocks.get(0))
+        if ((vertStates.get(0).isSolidBlock(world, verticalBlocks.get(0)) ||
+                StairsBlock.isStairs(vertStates.get(0)) ||
+                vertStates.get(0).getBlock() instanceof SlabBlock)
                 && vertStates.get(1).canPathfindThrough(world, verticalBlocks.get(1), NavigationType.AIR)
                 && vertStates.get(2).canPathfindThrough(world, verticalBlocks.get(2), NavigationType.AIR)) {
             ret = true;

@@ -1,5 +1,9 @@
 package net.fabricmc.example;
 
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.SlabBlock;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.math.BlockPos;
@@ -97,6 +101,11 @@ public class WalkFollowPathTask implements Tickable {
         }
 
         boolean needJump = targetBlock.subtract(currentBlock).getY() > 0;
+
+        BlockState targetFloor = player.getWorld().getBlockState(targetBlock.add(0, -1, 0));
+//        if (targetFloor.getBlock() instanceof SlabBlock) {
+//            needJump = false;
+//        }
 
         client.options.jumpKey.setPressed(needJump && targetBlock.getY() - player.getY() > 0.5);
         Vec3d posOrig = player.getPos();

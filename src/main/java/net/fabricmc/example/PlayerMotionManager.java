@@ -25,6 +25,7 @@ public class PlayerMotionManager {
 
     private NaiveFishingTask naiveFishingTask;
     private CrossBoxSortTask crossBoxSortTask;
+    private NaiveHitMobsTask naiveHitMobsTask;
 
 
     public PlayerMotionManager(MinecraftClient client, ScheduledExecutorService executor, XrayRender xrayRender) {
@@ -37,6 +38,7 @@ public class PlayerMotionManager {
         attackMobsTask = new AttackMobsTask(client, executor, xrayRender, playerMotion);
         naiveFishingTask = new NaiveFishingTask(client, executor, xrayRender, playerMotion);
         crossBoxSortTask = new CrossBoxSortTask(client, executor, xrayRender, playerMotion);
+        naiveHitMobsTask = new NaiveHitMobsTask(client, executor, xrayRender, playerMotion);
     }
 
 
@@ -45,7 +47,8 @@ public class PlayerMotionManager {
                 .then(transferItemTask.registerCommand(literal("transferItem")))
                 .then(attackMobsTask.registerCommand(literal("attackMobs")))
                 .then(naiveFishingTask.registerCommand(literal("naiveFishing")))
-                .then(crossBoxSortTask.registerCommand(literal("crossBoxSort")));
+                .then(crossBoxSortTask.registerCommand(literal("crossBoxSort")))
+                .then(naiveHitMobsTask.registerCommand(literal("naiveHitMobs")));
     }
 
 }
