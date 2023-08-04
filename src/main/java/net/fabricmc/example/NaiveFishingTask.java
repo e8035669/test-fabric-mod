@@ -70,6 +70,29 @@ public class NaiveFishingTask {
         this.walkPathRender = null;
     }
 
+    private static void waitFor(BooleanSupplier func, int times, int checkInterval) {
+        waitFor(func, times, checkInterval, false);
+    }
+
+    private static void waitFor(BooleanSupplier func, int times, int checkInterval, boolean throwOnTimeout) {
+        boolean success = false;
+        while (times > 0) {
+            times--;
+            if (func.getAsBoolean()) {
+                success = true;
+                break;
+            }
+            try {
+                Thread.sleep(checkInterval);
+            } catch (InterruptedException ex) {
+                LOGGER.warn(ex);
+            }
+        }
+        if (!success && throwOnTimeout) {
+            throw new RuntimeException("Wait Timeout");
+        }
+    }
+
     public void setBedPosition() {
         HitResult hitResult = client.crosshairTarget;
         boolean isSet = false;
@@ -345,7 +368,6 @@ public class NaiveFishingTask {
         this.playerYaw = client.player.getYaw();
     }
 
-
     private int[] filterItem(List<ItemStack> itemStacks, Item item) {
         return IntStream.range(0, itemStacks.size())
                 .filter((i) -> itemStacks.get(i).isOf(item))
@@ -354,28 +376,5 @@ public class NaiveFishingTask {
 
     private void closeScreen() {
         client.setScreen(null);
-    }
-
-    private static void waitFor(BooleanSupplier func, int times, int checkInterval) {
-        waitFor(func, times, checkInterval, false);
-    }
-
-    private static void waitFor(BooleanSupplier func, int times, int checkInterval, boolean throwOnTimeout) {
-        boolean success = false;
-        while (times > 0) {
-            times--;
-            if (func.getAsBoolean()) {
-                success = true;
-                break;
-            }
-            try {
-                Thread.sleep(checkInterval);
-            } catch (InterruptedException ex) {
-                LOGGER.warn(ex);
-            }
-        }
-        if (!success && throwOnTimeout) {
-            throw new RuntimeException("Wait Timeout");
-        }
     }
 }

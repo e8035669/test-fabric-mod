@@ -38,8 +38,8 @@ public class PlayerMotion {
     public static final Logger LOGGER = LogManager.getLogger("PlayerMotion");
 
     private final MinecraftClient client;
-    private ScheduledExecutorService executor;
     private final Queue<Tickable> tasks;
+    private ScheduledExecutorService executor;
     private Tickable currentTask;
 
     private ScheduledFuture<?> scheduledFuture;
@@ -227,19 +227,13 @@ class LookDirection implements Tickable {
 
     private static float MAX_YAW_DELTA = 10.0f;
     private static float MAX_PITCH_DELTA = 1.0f;
-
-    private enum Status {START, MOVING, END}
+    private MinecraftClient client;
 
     ;
-
-
-    private MinecraftClient client;
     private Vec3d pos;
     private ClientPlayerEntity player;
-
     private float targetYaw;
     private float targetPitch;
-
     private float maxYawDelta;
     private float maxPitchDelta;
     private Status status;
@@ -333,4 +327,6 @@ class LookDirection implements Tickable {
     public boolean isError() {
         return false;
     }
+
+    private enum Status {START, MOVING, END}
 }

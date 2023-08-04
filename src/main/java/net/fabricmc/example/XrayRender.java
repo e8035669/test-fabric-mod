@@ -13,11 +13,11 @@ import java.util.List;
 
 public class XrayRender implements WorldRenderEvents.End {
 
+    private final List<XrayRenderable> renderables = new ArrayList<>();
+
     public List<XrayRenderable> getRenderables() {
         return renderables;
     }
-
-    private final List<XrayRenderable> renderables = new ArrayList<>();
 
     @Override
     public void onEnd(WorldRenderContext context) {

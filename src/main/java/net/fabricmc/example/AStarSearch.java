@@ -8,7 +8,6 @@ import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.ai.pathing.NavigationType;
-import net.minecraft.structure.StrongholdGenerator;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -39,18 +38,6 @@ public class AStarSearch {
             }
         }
         return Optional.empty();
-    }
-
-    private Optional<BlockPos> verticalFindFloorOrEnd(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
-        if (blockPos.getX() == end.getX() && blockPos.getZ() == end.getZ()) {
-            for (int i = highest; i >= lowest; i--) {
-                BlockPos blockPos1 = blockPos.add(0, i, 0);
-                if (blockPos1.equals(end)) {
-                    return Optional.of(blockPos1);
-                }
-            }
-        }
-        return verticalFindFloor(world, blockPos, lowest, highest);
     }
 
     public static List<BlockPos> findNearFloor(ClientWorld world, BlockPos centerBlock, int distance) {
@@ -120,6 +107,18 @@ public class AStarSearch {
             }
         }
         return ret;
+    }
+
+    private Optional<BlockPos> verticalFindFloorOrEnd(ClientWorld world, BlockPos blockPos, int lowest, int highest) {
+        if (blockPos.getX() == end.getX() && blockPos.getZ() == end.getZ()) {
+            for (int i = highest; i >= lowest; i--) {
+                BlockPos blockPos1 = blockPos.add(0, i, 0);
+                if (blockPos1.equals(end)) {
+                    return Optional.of(blockPos1);
+                }
+            }
+        }
+        return verticalFindFloor(world, blockPos, lowest, highest);
     }
 
     public AStarSearch setNearMode(boolean nearMode) {

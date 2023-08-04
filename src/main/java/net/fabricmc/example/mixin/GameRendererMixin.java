@@ -11,13 +11,13 @@ import org.spongepowered.asm.mixin.Shadow;
 public class GameRendererMixin implements GameRendererInterface {
 
     @Shadow
+    @Final
+    private Camera camera;
+
+    @Shadow
     private double getFov(Camera camera, float tickDelta, boolean changingFov) {
         return 0;
     }
-
-    @Shadow
-    @Final
-    private Camera camera;
 
     @Override
     public double getFov(float tickDelta) {

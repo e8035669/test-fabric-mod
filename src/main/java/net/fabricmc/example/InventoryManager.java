@@ -26,32 +26,6 @@ public class InventoryManager {
 
     }
 
-    public void tick() {
-        MinecraftClient client = MinecraftClient.getInstance();
-
-        if (lastScreen.isEmpty() && client.currentScreen != null) {
-            onScreenOpen(client);
-        }
-
-        lastScreen = Optional.ofNullable(client.currentScreen);
-    }
-
-    private void onScreenOpen(MinecraftClient client) {
-        if (client.currentScreen instanceof HandledScreen<?>) {
-            showAllSlots(client);
-        }
-    }
-
-    private void showAllSlots(MinecraftClient client) {
-        HandledScreen<?> screen = (HandledScreen<?>) client.currentScreen;
-        ScreenHandler handler = screen.getScreenHandler();
-
-        LOGGER.info("Show all slots in %s".formatted(screen.getTitle()));
-        for (Slot slot : handler.slots) {
-            LOGGER.info("Slot %d: (%s, %d)".formatted(slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex()));
-        }
-    }
-
     public static List<Slot> selectAllItemInBox(MinecraftClient client) {
         if (checkIfScreenNotOpened(client)) {
             return new ArrayList<>();
@@ -98,7 +72,6 @@ public class InventoryManager {
         int offset = handler.getRows() * 9;
         return offset;
     }
-
 
     public static List<Slot> filterSlots(List<Slot> slots, int from, int end, Function<Slot, Boolean> predicate) {
         List<Slot> ret = new ArrayList<>();
@@ -157,5 +130,31 @@ public class InventoryManager {
 
     public static boolean checkIfScreenNotOpened(MinecraftClient client) {
         return !(client.currentScreen instanceof GenericContainerScreen);
+    }
+
+    public void tick() {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (lastScreen.isEmpty() && client.currentScreen != null) {
+            onScreenOpen(client);
+        }
+
+        lastScreen = Optional.ofNullable(client.currentScreen);
+    }
+
+    private void onScreenOpen(MinecraftClient client) {
+        if (client.currentScreen instanceof HandledScreen<?>) {
+            showAllSlots(client);
+        }
+    }
+
+    private void showAllSlots(MinecraftClient client) {
+        HandledScreen<?> screen = (HandledScreen<?>) client.currentScreen;
+        ScreenHandler handler = screen.getScreenHandler();
+
+        LOGGER.info("Show all slots in %s".formatted(screen.getTitle()));
+        for (Slot slot : handler.slots) {
+            LOGGER.info("Slot %d: (%s, %d)".formatted(slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex()));
+        }
     }
 }

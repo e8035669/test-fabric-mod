@@ -46,6 +46,14 @@ public class AttackMobsTask {
         this.future = null;
     }
 
+    private static void printSlots(List<Slot> slots) {
+        for (Slot slot : slots) {
+            LOGGER.info("Slot %d: (%s, %d, %s)".formatted(
+                    slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex(),
+                    slot.inventory.getStack(slot.getIndex())));
+        }
+    }
+
     public void startAttackMobs() {
         if (future == null || future.isDone()) {
             future = executor.schedule(this::doAttackMobs, 1000, TimeUnit.MILLISECONDS);
@@ -120,14 +128,6 @@ public class AttackMobsTask {
             HotPlugMouse.plugMouse(client);
             LOGGER.info("Attack mob task finish");
             client.player.sendMessage(Text.literal("Attack mob task finish"));
-        }
-    }
-
-    private static void printSlots(List<Slot> slots) {
-        for (Slot slot : slots) {
-            LOGGER.info("Slot %d: (%s, %d, %s)".formatted(
-                    slot.id, slot.inventory.getClass().getSimpleName(), slot.getIndex(),
-                    slot.inventory.getStack(slot.getIndex())));
         }
     }
 

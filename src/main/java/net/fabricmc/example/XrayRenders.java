@@ -10,7 +10,7 @@ public class XrayRenders extends ArrayList<XrayRenderable> implements XrayRender
 
     @Override
     public void render(MatrixStack matrixStack, VertexConsumer vertexConsumer, Vec3d cameraPos) {
-        for (XrayRenderable item: this) {
+        for (XrayRenderable item : this) {
             item.render(matrixStack, vertexConsumer, cameraPos);
         }
     }

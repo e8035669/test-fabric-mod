@@ -8,18 +8,20 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.TimeHelper;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Timer;
+import java.util.List;
+import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
@@ -49,6 +51,7 @@ public class NaiveHitMobsTask {
             future = executor.schedule(this::doHitMobs, 1000, TimeUnit.MILLISECONDS);
         }
     }
+
     public void stopHitMobs() {
         future.cancel(true);
     }
@@ -73,6 +76,13 @@ public class NaiveHitMobsTask {
                     }
                 }
 
+                if (client.player.getHungerManager().isNotFull()) {
+                    int weaponSlot = client.player.getInventory().selectedSlot;
+                    this.tryEatSafeFoods();
+                    Thread.sleep(1000);
+                    pressKey(client.options.hotbarKeys[weaponSlot]);
+                }
+
                 Thread.sleep(50);
             }
 
@@ -90,12 +100,12 @@ public class NaiveHitMobsTask {
         }
     }
 
-    public void setHitInterval(int intervalMs) {
-        this.hitInterval = intervalMs;
-    }
-
     public int getHitInterval() {
         return this.hitInterval;
+    }
+
+    public void setHitInterval(int intervalMs) {
+        this.hitInterval = intervalMs;
     }
 
     private int setHitInterval(CommandContext<FabricClientCommandSource> context) {
@@ -112,6 +122,20 @@ public class NaiveHitMobsTask {
         return Command.SINGLE_SUCCESS;
     }
 
+    private void tryEatSafeFoods() throws InterruptedException {
+        List<ItemStack> hotbar = PlayerSlots.getHotBarItems(client);
+        OptionalInt foodSlot = IntStream.range(0, 9)
+                .filter(i -> hotbar.get(i).isFood())
+                .filter(i -> hotbar.get(i).getItem().getFoodComponent().getStatusEffects().isEmpty())
+                .findFirst();
+
+        if (foodSlot.isPresent()) {
+            pressKey(client.options.hotbarKeys[foodSlot.getAsInt()]);
+            // 32 tick * 50 ms/tick = 1600
+            pressKey(client.options.useKey, 3000);
+        }
+    }
+
 
     public LiteralArgumentBuilder<FabricClientCommandSource> registerCommand(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
         return builder
@@ -122,11 +146,16 @@ public class NaiveHitMobsTask {
                                 .executes(this::setHitInterval)));
     }
 
-    private void pressKey(KeyBinding keyBinding) throws InterruptedException {
+    private void pressKey(KeyBinding keyBinding, int sleepTime) throws InterruptedException {
         keyBinding.setPressed(true);
         KeyPressable.of(keyBinding).onKeyPressed();
-        Thread.sleep(200);
+        Thread.sleep(sleepTime);
         keyBinding.setPressed(false);
     }
+
+    private void pressKey(KeyBinding keyBinding) throws InterruptedException {
+        pressKey(keyBinding, 200);
+    }
+
 
 }
