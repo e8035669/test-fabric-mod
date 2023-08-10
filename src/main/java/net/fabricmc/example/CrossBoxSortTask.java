@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
@@ -201,7 +202,7 @@ public class CrossBoxSortTask {
     public int startSortBoxes(CommandContext<FabricClientCommandSource> context) {
         EnchantmentTargetAdapter target = context.getArgument("target", EnchantmentTargetAdapter.class);
         if (future == null || future.isDone()) {
-            future = executor.schedule(() -> this.doSortBooks(target.target), 1000, TimeUnit.MILLISECONDS);
+            future = executor.schedule(() -> this.doSortBooks(Set.of(target.target)), 1000, TimeUnit.MILLISECONDS);
         }
         return Command.SINGLE_SUCCESS;
     }
@@ -210,15 +211,22 @@ public class CrossBoxSortTask {
         ItemStack itemStack = client.player.getInventory().getMainHandStack();
         client.player.sendMessage(itemStack.getItem().getName());
         MutableText texts = Text.literal("Accept target:");
-        for (EnchantmentTarget t : EnchantmentTarget.values()) {
-            if (t.isAcceptableItem(itemStack.getItem())) {
-                texts.append(t.toString()).append(", ");
-            }
+        Set<EnchantmentTarget> acceptedTarget = Arrays.stream(EnchantmentTarget.values())
+                .filter(t -> t.isAcceptableItem(itemStack.getItem()))
+                .collect(Collectors.toSet());
+
+        for (EnchantmentTarget t : acceptedTarget) {
+            texts.append(t.toString()).append(", ");
         }
         client.player.sendMessage(texts);
+
+
+//        if (future == null || future.isDone()) {
+//            future = executor.schedule(() -> this.doSortBooks(acceptedTarget), 1000, TimeUnit.MILLISECONDS);
+//        }
     }
 
-    public void doSortBooks(EnchantmentTarget target) {
+    public void doSortBooks(Set<EnchantmentTarget> target) {
         try {
             client.player.sendMessage(Text.literal("Start sort books"));
             this.checkStatus();
