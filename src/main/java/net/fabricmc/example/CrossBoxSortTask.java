@@ -20,6 +20,7 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Pair;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -120,7 +121,7 @@ public class CrossBoxSortTask {
         }
 
         if (canAdd) {
-            this.currentSelectedBoxes.add(blockPos);
+            this.currentSelectedBoxes.add(blockPos.toImmutable());
             this.updateRenders();
         }
         return canAdd;
@@ -220,29 +221,113 @@ public class CrossBoxSortTask {
         }
         client.player.sendMessage(texts);
 
-
-//        if (future == null || future.isDone()) {
-//            future = executor.schedule(() -> this.doSortBooks(acceptedTarget), 1000, TimeUnit.MILLISECONDS);
-//        }
+        if (future == null || future.isDone()) {
+            future = executor.schedule(() -> this.doSortBooks(acceptedTarget), 1000, TimeUnit.MILLISECONDS);
+        }
     }
 
-    public void doSortBooks(Set<EnchantmentTarget> target) {
-        try {
-            client.player.sendMessage(Text.literal("Start sort books"));
-            this.checkStatus();
+    private class SortBooksImpl {
+        private CrossBoxSortTask source;
+        private Set<EnchantmentTarget> targets;
 
-            int[] movingBuffer = this.getMovingBuffer();
-            String msg = String.format("Has %d empty slot to move", movingBuffer.length);
+        public final Logger LOGGER;
+        private final MinecraftClient client;
+        private final ScheduledExecutorService executor;
+        private final XrayRender xrayRender;
+        private final XrayRenders renders;
+        private final PlayerMotion playerMotion;
+        private final ScheduledFuture<?> future;
+        private final Optional<WalkPathRender> walkPathRender;
+        private final List<BlockPos> currentSelectedBoxes;
+
+
+        private int[] movingBuffer;
+        private Map<BlockPos, List<Slot>> books = new HashMap<>();
+        private Map<BlockPos, List<Slot>> emptySlots = new HashMap<>();
+        private Map<Slot, Double> bookScores;
+        private List<Double> sortedScores;
+        private List<BooksSortSearching.BookSortStatus> searchResult;
+
+
+        public SortBooksImpl(CrossBoxSortTask source, Set<EnchantmentTarget> targets) {
+            this.source = source;
+            this.targets = targets;
+            this.LOGGER = CrossBoxSortTask.LOGGER;
+            this.client = source.client;
+            this.executor = source.executor;
+            this.xrayRender = source.xrayRender;
+            this.renders = source.renders;
+            this.playerMotion = source.playerMotion;
+            this.future = source.future;
+            this.walkPathRender = source.walkPathRender;
+            this.currentSelectedBoxes = source.currentSelectedBoxes;
+        }
+
+        private void sortBooks() throws InterruptedException {
+            client.player.sendMessage(Text.literal("Start sort books"));
+            this.source.checkStatus();
+
+            this.movingBuffer = this.getMovingBuffer();
+            String msg = String.format("I have %d empty slot to move", this.movingBuffer.length);
             client.player.sendMessage(Text.literal(msg));
 
             msg = "Start check boxes";
             client.player.sendMessage(Text.literal(msg));
+            this.collectBooksInBox();
+            this.collectBookScores();
+            this.printBooksInBoxInfo();
 
-            Map<BlockPos, List<Slot>> books = new HashMap<>();
+            BooksSortSearching searching = new BooksSortSearching(
+                    movingBuffer, currentSelectedBoxes, books, emptySlots, bookScores, sortedScores);
+            var result = searching.search();
+            if (result.isPresent()) {
+                int len = result.get().size();
+                client.player.sendMessage(Text.literal("Has result %d steps.".formatted(len)));
+            } else {
+                client.player.sendMessage(Text.literal("Search failed"));
+            }
 
+            if (result.isPresent()) {
+                this.searchResult = result.get();
+                this.doSortBooks();
+            }
+
+
+
+            client.player.sendMessage(Text.literal("Finish sort books"));
+        }
+
+        private void doSortBooks() throws InterruptedException {
+            int len = this.searchResult.size();
+            client.player.sendMessage(Text.literal("Start sorting books, %d steps".formatted(len)));
+
+            for (BooksSortSearching.BookSortStatus sortStatus : this.searchResult) {
+                CrossBoxSortTask.throwOnCancelled(this.future);
+                BlockPos boxPos = sortStatus.selectedBox;
+                this.source.moveToNearBlock(boxPos);
+                this.source.pressKey(client.options.useKey);
+                waitFor(() -> client.currentScreen instanceof GenericContainerScreen,
+                        10, 50, true);
+
+                GenericContainerSlots slots = new GenericContainerSlots(client.currentScreen);
+                List<Pair<Integer, Integer>> boxSwitchAction = sortStatus.boxSwitchAction;
+                for (Pair<Integer, Integer> p : boxSwitchAction) {
+
+
+                }
+
+
+
+
+
+            }
+        }
+
+        private void collectBooksInBox() throws InterruptedException {
             for (BlockPos blockPos : this.currentSelectedBoxes) {
-                this.moveToNearBlock(blockPos);
-                this.pressKey(client.options.useKey);
+                CrossBoxSortTask.throwOnCancelled(this.future);
+                this.source.moveToNearBlock(blockPos);
+                this.source.pressKey(client.options.useKey);
                 waitFor(() -> client.currentScreen instanceof GenericContainerScreen,
                         10, 50, true);
 
@@ -252,25 +337,62 @@ public class CrossBoxSortTask {
                         .toList();
                 books.put(blockPos, booksInBox);
 
-                client.send(this::closeScreen);
+                List<Slot> emptyInBox = slots.boxSlots.stream()
+                        .filter(s -> s.getStack().isEmpty() || s.getStack().isOf(Items.ENCHANTED_BOOK))
+                        .toList();
+                emptySlots.put(blockPos, emptyInBox);
+
+                client.send(this.source::closeScreen);
                 Thread.sleep(500);
             }
             client.player.sendMessage(Text.literal("List books"));
+        }
 
+        private void collectBookScores() {
+            this.bookScores = this.currentSelectedBoxes.stream()
+                    .flatMap(b -> books.get(b).stream())
+                    .map(s -> Map.entry(s, scoringBook(targets, EnchantmentHelper.get(s.getStack()))))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            this.sortedScores = bookScores.values().stream()
+                    .sorted(Comparator.comparingDouble(Double::doubleValue).reversed())
+                    .toList();
+        }
+
+        private void printBooksInBoxInfo() {
             for (BlockPos blockPos : this.currentSelectedBoxes) {
                 List<Slot> slots = books.get(blockPos);
-                client.player.sendMessage(Text.literal("Box %s".formatted(blockPos)));
+                List<Slot> emptySlot = emptySlots.get(blockPos);
+                client.player.sendMessage(Text.literal("Box %s, %d space".formatted(blockPos, emptySlot.size())));
                 for (Slot s : slots) {
                     Map<Enchantment, Integer> enchantments = EnchantmentHelper.get(s.getStack());
                     MutableText text = Text.literal("Slot %d:".formatted(s.getIndex()));
                     for (Map.Entry<Enchantment, Integer> e : enchantments.entrySet()) {
                         text.append(" ").append(e.getKey().getName(e.getValue()));
                     }
+                    // double score = scoringBook(targets, enchantments);
+                    double score = this.bookScores.get(s);
+                    text.append(", score: %.2f".formatted(score));
                     client.player.sendMessage(text);
                 }
             }
+        }
 
-            client.player.sendMessage(Text.literal("Finish sort books"));
+        private int[] getMovingBuffer() {
+            List<ItemStack> mainBag = client.player.getInventory().main;
+            int[] movingBuffer = IntStream.range(0, mainBag.size())
+                    .filter(i -> mainBag.get(i).isEmpty())
+                    .toArray();
+            return movingBuffer;
+        }
+
+    }
+
+
+    public void doSortBooks(Set<EnchantmentTarget> targets) {
+        try {
+            SortBooksImpl impl = new SortBooksImpl(this, targets);
+            impl.sortBooks();
         } catch (Exception ex) {
             LOGGER.info(ex);
             LOGGER.catching(ex);
@@ -287,6 +409,23 @@ public class CrossBoxSortTask {
         }
     }
 
+    private static double scoringBook(Set<EnchantmentTarget> target, Map<Enchantment, Integer> enchantments) {
+        double score = 0.0;
+        for (Map.Entry<Enchantment, Integer> e : enchantments.entrySet()) {
+            if (e.getKey().isCursed()) {
+                score = -999;
+                break;
+            }
+            if (target.contains(e.getKey().target)) {
+                // 不是最高級扣分
+                double level_diff = 5.0 - (e.getKey().getMaxLevel() - e.getValue());
+                double weight = 1.0 + 0.1 * e.getKey().getMaxLevel();
+                score += level_diff * weight;
+            }
+        }
+        return score;
+    }
+
     private void checkStatus() {
         if (this.currentSelectedBoxes.isEmpty()) {
             throw new RuntimeException("No selected boxes");
@@ -296,19 +435,6 @@ public class CrossBoxSortTask {
         }
     }
 
-    private int[] getMovingBuffer() {
-        List<ItemStack> mainBag = client.player.getInventory().main;
-        int[] movingBuffer = IntStream.range(0, mainBag.size())
-                .filter(i -> mainBag.get(i).isEmpty())
-                .toArray();
-        return movingBuffer;
-    }
-
-    private void throwOnCancelled(ScheduledFuture<?> future) {
-        if (future.isCancelled()) {
-            throw new RuntimeException("Future Cancelled");
-        }
-    }
 
     private Optional<BlockPos> getNeighborChestPos(BlockPos blockPos) {
         Optional<BlockPos> ret = Optional.empty();
@@ -334,6 +460,7 @@ public class CrossBoxSortTask {
             updateRenders();
             LOGGER.info("Wait for WalkFollowPathTask to finish.");
             while (!walkFollowPathTask.isFinished()) {
+                throwOnCancelled(this.future);
                 Thread.sleep(10);
             }
             LOGGER.info("Wait for WalkFollowPathTask is finished.");
@@ -344,6 +471,7 @@ public class CrossBoxSortTask {
         playerMotion.lookDirection(Vec3d.ofCenter(sourceBlockPos));
 
         while (!playerMotion.isTaskEmpty()) {
+            throwOnCancelled(this.future);
             Thread.sleep(10);
         }
         Thread.sleep(200);
@@ -364,6 +492,13 @@ public class CrossBoxSortTask {
         client.setScreen(null);
     }
 
+    private static void throwOnCancelled(ScheduledFuture<?> future) {
+        if (future.isCancelled()) {
+            throw new RuntimeException("Future Cancelled");
+        }
+    }
+
+
     public LiteralArgumentBuilder<FabricClientCommandSource> registerCommand(LiteralArgumentBuilder<FabricClientCommandSource> builder) {
         return builder
                 .then(literal("startRememberBoxes").executes(CommandHelper.wrap(this::startRememberBoxes)))
@@ -373,4 +508,6 @@ public class CrossBoxSortTask {
                                 .executes(this::startSortBoxes)))
                 .then(literal("startSortBoxesAccordHand").executes(CommandHelper.wrap(this::startSortBoxesAccordHand)));
     }
+
+
 }
