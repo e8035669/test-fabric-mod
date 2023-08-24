@@ -5,8 +5,9 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class XrayRenders extends ArrayList<XrayRenderable> implements XrayRenderable {
+public class XrayRenders extends ConcurrentLinkedQueue<XrayRenderable> implements XrayRenderable {
 
     @Override
     public void render(MatrixStack matrixStack, VertexConsumer vertexConsumer, Vec3d cameraPos) {

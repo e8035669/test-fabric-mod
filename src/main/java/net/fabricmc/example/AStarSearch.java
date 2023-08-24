@@ -8,6 +8,7 @@ import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.ai.pathing.NavigationType;
+import net.minecraft.util.Pair;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -131,6 +132,7 @@ public class AStarSearch {
         frontier.add(new PriBlockPos(0, start));
         Map<BlockPos, Optional<BlockPos>> cameFrom = new HashMap<>();
         Map<BlockPos, Double> costSoFar = new HashMap<>();
+        Map<BlockPos, Double> distanceToEnd = new HashMap<>();
         cameFrom.put(start, Optional.empty());
         costSoFar.put(start, 0.0);
         boolean isFound = false;
@@ -147,7 +149,9 @@ public class AStarSearch {
                 double newCost = costSoFar.get(current.blockPos) + getCostOf(current.blockPos, next);
                 if (!cameFrom.containsKey(next) || newCost < costSoFar.get(next)) {
                     costSoFar.put(next, newCost);
-                    double priority = newCost + heuristic(next, end);
+                    double currHeuristic = heuristic(next, end);
+                    distanceToEnd.put(next, currHeuristic);
+                    double priority = newCost + currHeuristic;
                     frontier.add(new PriBlockPos(priority, next));
                     cameFrom.put(next, Optional.of(current.blockPos));
                 }
@@ -155,7 +159,33 @@ public class AStarSearch {
         }
 
         if (!isFound) {
-            return Optional.empty();
+            if (!isNearMode) {
+                return Optional.empty();
+            } else {
+                Optional<Double> minValue = distanceToEnd.values().stream().min(Double::compareTo);
+                if (minValue.isEmpty()) {
+                    return Optional.empty();
+                }
+                double minDistance = minValue.get();
+                Optional<Map.Entry<BlockPos, Double>> nearestPos = distanceToEnd.entrySet().stream()
+                        .filter(e-> e.getValue() == minDistance)
+                        .map(Map.Entry::getKey)
+                        .map(p->Map.entry(p, costSoFar.get(p)))
+                        .min(Comparator.comparingDouble(Map.Entry::getValue));
+                if (nearestPos.isEmpty()) {
+                    throw new RuntimeException("Why nearest pos is empty?");
+                }
+
+                WalkPath reversedPath = new WalkPath();
+
+                Optional<BlockPos> fromBlock = Optional.of(nearestPos.get().getKey());
+                while (fromBlock.isPresent()) {
+                    reversedPath.add(fromBlock.get());
+                    fromBlock = cameFrom.get(fromBlock.get());
+                }
+
+                return Optional.of(WalkPath.of(Lists.reverse(reversedPath)));
+            }
         } else {
             WalkPath reversedPath = new WalkPath();
             reversedPath.add(end);

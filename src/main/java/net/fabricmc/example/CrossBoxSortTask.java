@@ -17,6 +17,7 @@ import net.minecraft.enchantment.EnchantmentTarget;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -268,6 +269,7 @@ public class CrossBoxSortTask {
             this.source.checkStatus();
 
             this.movingBuffer = this.getMovingBuffer();
+            LOGGER.info("Moving buffer {}", this.movingBuffer);
             String msg = String.format("I have %d empty slot to move", this.movingBuffer.length);
             client.player.sendMessage(Text.literal(msg));
 
@@ -304,6 +306,11 @@ public class CrossBoxSortTask {
             for (BooksSortSearching.BookSortStatus sortStatus : this.searchResult) {
                 CrossBoxSortTask.throwOnCancelled(this.future);
                 BlockPos boxPos = sortStatus.selectedBox;
+                if (Objects.isNull(boxPos)) {
+                    continue;
+                }
+                LOGGER.info("Goto {}", boxPos);
+                List<Slot> boxSlots = emptySlots.get(boxPos);
                 this.source.moveToNearBlock(boxPos);
                 this.source.pressKey(client.options.useKey);
                 waitFor(() -> client.currentScreen instanceof GenericContainerScreen,
@@ -312,21 +319,41 @@ public class CrossBoxSortTask {
                 GenericContainerSlots slots = new GenericContainerSlots(client.currentScreen);
                 List<Pair<Integer, Integer>> boxSwitchAction = sortStatus.boxSwitchAction;
                 for (Pair<Integer, Integer> p : boxSwitchAction) {
+                    int id1 = boxSlots.get(p.getLeft()).id;
+                    int id2 = boxSlots.get(p.getRight()).id;
+                    LOGGER.info("Swap box {} <-> {}, ({}, {})", id1, id2, p.getLeft(), p.getRight());
+//                    client.interactionManager.clickSlot(slots.getSyncId(), id1, id2, SlotActionType.SWAP, client.player);
 
-
+                    client.interactionManager.clickSlot(slots.getSyncId(), id1, 0, SlotActionType.PICKUP, client.player);
+                    client.interactionManager.clickSlot(slots.getSyncId(), id2, 0, SlotActionType.PICKUP, client.player);
+                    client.interactionManager.clickSlot(slots.getSyncId(), id1, 0, SlotActionType.PICKUP, client.player);
                 }
 
+                List<Pair<Integer, Integer>> bufferSwitchAction = sortStatus.bufferSwitchAction;
+                Map<Integer, Integer> index2IdMap = slots.getBagIndex2IdMap();
+                for (Pair<Integer, Integer> p : bufferSwitchAction) {
+                    int id1 = index2IdMap.get(this.movingBuffer[p.getLeft()]);
+                    int id2 = boxSlots.get(p.getRight()).id;
+                    LOGGER.info("Swap bag {} <-> {}, ({}, {})", id1, id2, p.getLeft(), p.getRight());
+//                    client.interactionManager.clickSlot(slots.getSyncId(), id1, id2, SlotActionType.SWAP, client.player);
 
+                    client.interactionManager.clickSlot(slots.getSyncId(), id1, 0, SlotActionType.PICKUP, client.player);
+                    client.interactionManager.clickSlot(slots.getSyncId(), id2, 0, SlotActionType.PICKUP, client.player);
+                    client.interactionManager.clickSlot(slots.getSyncId(), id1, 0, SlotActionType.PICKUP, client.player);
+                }
 
-
-
+                client.send(this.source::closeScreen);
+                Thread.sleep(500);
             }
+
+            client.player.sendMessage(Text.literal("Finish book sorting"));
         }
 
         private void collectBooksInBox() throws InterruptedException {
             for (BlockPos blockPos : this.currentSelectedBoxes) {
                 CrossBoxSortTask.throwOnCancelled(this.future);
                 this.source.moveToNearBlock(blockPos);
+                Thread.sleep(1000);
                 this.source.pressKey(client.options.useKey);
                 waitFor(() -> client.currentScreen instanceof GenericContainerScreen,
                         10, 50, true);
@@ -464,17 +491,22 @@ public class CrossBoxSortTask {
                 Thread.sleep(10);
             }
             LOGGER.info("Wait for WalkFollowPathTask is finished.");
+        } else {
+            LOGGER.warn("A Star search path not found");
         }
 
         Thread.sleep(200);
 
-        playerMotion.lookDirection(Vec3d.ofCenter(sourceBlockPos));
+        BlockPos diff = client.player.getBlockPos().subtract(sourceBlockPos);
+        Vec3d lookTarget = Vec3d.ofCenter(sourceBlockPos);
+        lookTarget = lookTarget.add(Integer.compare(diff.getX(), 0) * 0.5, 0, Integer.compare(diff.getZ(), 0) * 0.5);
+        playerMotion.lookDirection(lookTarget);
 
         while (!playerMotion.isTaskEmpty()) {
             throwOnCancelled(this.future);
             Thread.sleep(10);
         }
-        Thread.sleep(200);
+        Thread.sleep(500);
     }
 
     private void pressKey(KeyBinding keyBinding, int sleepTime) throws InterruptedException {

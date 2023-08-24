@@ -179,7 +179,7 @@ public class BooksSortSearching extends Searching<BooksSortSearching.BookSortSta
                     if (bufferStatus.get(j).isPresent()) {
                         continue;
                     }
-                    // from box to bag -> swap from bag to box
+                    // swap from bag to box
                     bufferSwitchAction.add(new Pair<>(j, i));
                     Optional<Double> tmp = bufferStatus.get(j);
                     bufferStatus.set(j, statusView.get(i));
